@@ -5,7 +5,7 @@ import '../models/medication.dart';
 import '../database/medication_db.dart';
 
 class AddMedicationScreen extends StatefulWidget {
-  const AddMedicationScreen({Key? key}) : super(key: key);
+  const AddMedicationScreen({super.key});
 
   @override
   State<AddMedicationScreen> createState() => _AddMedicationScreenState();
@@ -190,7 +190,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     onPressed: () => _removeReminderTime(index),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 80),
             ],
           ),

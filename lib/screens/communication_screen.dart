@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class CommunicationScreen extends StatelessWidget {
-  const CommunicationScreen({Key? key}) : super(key: key);
+  const CommunicationScreen({super.key});
 
   final List<Map<String, String>> _providers = const [
     {'name': 'Dr. John Mwangi', 'specialty': 'General Physician'},

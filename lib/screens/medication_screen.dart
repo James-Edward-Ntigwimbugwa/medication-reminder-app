@@ -3,7 +3,7 @@ import '../models/medication.dart';
 import '../database/medication_db.dart';
 
 class MedicationScreen extends StatefulWidget {
-  const MedicationScreen({Key? key}) : super(key: key);
+  const MedicationScreen({super.key});
 
   @override
   _MedicationScreenState createState() => _MedicationScreenState();

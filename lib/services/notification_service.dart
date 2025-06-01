@@ -1,6 +1,5 @@
-import 'dart:nativewrappers/_internal/vm/lib/typed_data_patch.dart';
+import 'dart:typed_data';
 import 'dart:ui';
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
@@ -94,7 +93,6 @@ class NotificationService {
       'Medication Reminders',
       description: 'High priority notifications for medication reminders',
       importance: Importance.max,
-      priority: Priority.high,
       enableVibration: true,
       enableLights: true,
       ledColor: Color.fromARGB(255, 255, 0, 0),
@@ -200,7 +198,7 @@ class NotificationService {
     String? payload,
   }) async {
     // Enhanced Android notification with full alert features
-    const AndroidNotificationDetails androidDetails =
+    AndroidNotificationDetails androidDetails =
     AndroidNotificationDetails(
       'medication_reminders_high',
       'Medication Reminders',
@@ -209,7 +207,7 @@ class NotificationService {
       priority: Priority.high,
 
       // Sound settings - use system alarm sound (ringtone-like)
-      sound: RawResourceAndroidNotificationSound('alarm'),
+      sound: const RawResourceAndroidNotificationSound('alarm'),
       playSound: true,
 
       // Vibration settings
@@ -218,7 +216,7 @@ class NotificationService {
 
       // Visual settings
       enableLights: true,
-      ledColor: Color.fromARGB(255, 255, 0, 0),
+      ledColor: const Color.fromARGB(255, 255, 0, 0),
       ledOnMs: 1000,
       ledOffMs: 500,
 
@@ -242,7 +240,7 @@ class NotificationService {
       visibility: NotificationVisibility.public,
 
       // Actions
-      actions: <AndroidNotificationAction>[
+      actions: const <AndroidNotificationAction>[
         AndroidNotificationAction(
           'mark_taken',
           '✅ Mark as Taken',
@@ -278,8 +276,8 @@ class NotificationService {
       presentSound: true,
       badgeNumber: 1,
 
-      // Critical alert for iOS (bypasses Do Not Disturb)
-      criticalAlert: true,
+      // // Critical alert for iOS (bypasses Do Not Disturb)
+      // criticalAlert: true,
 
       // Category for actions
       categoryIdentifier: 'MEDICATION_REMINDER',
@@ -288,7 +286,7 @@ class NotificationService {
       threadIdentifier: 'medication_reminders',
     );
 
-    const NotificationDetails notificationDetails = NotificationDetails(
+    NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -341,7 +339,7 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
-      criticalAlert: true,
+      // criticalAlert: true,
     );
 
     NotificationDetails notificationDetails = NotificationDetails(
@@ -366,14 +364,14 @@ class NotificationService {
 
   // Show immediate test notification
   static Future<void> showTestNotification() async {
-    const AndroidNotificationDetails androidDetails =
+    AndroidNotificationDetails androidDetails =
     AndroidNotificationDetails(
       'medication_reminders_high',
       'Medication Reminders',
       channelDescription: 'Test notification',
       importance: Importance.max,
       priority: Priority.high,
-      sound: RawResourceAndroidNotificationSound('alarm'),
+      sound: const RawResourceAndroidNotificationSound('alarm'),
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 1000, 500, 1000]),
       playSound: true,
@@ -385,10 +383,10 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
-      criticalAlert: true,
+      // criticalAlert: true,
     );
 
-    const NotificationDetails notificationDetails = NotificationDetails(
+    NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );

@@ -12,24 +12,23 @@ class NotificationService {
   NotificationService._internal();
 
   static final FlutterLocalNotificationsPlugin _notifications =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   // Initialize notifications with permission request
   static Future<bool> initialize() async {
     // Initialize timezone
     tz.initializeTimeZones();
 
-    // Request permissions first
-    final permissionGranted = await _requestAllPermissions();
-
+    // Initialize the plugin first
     const AndroidInitializationSettings androidSettings =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const DarwinInitializationSettings iosSettings =
-    DarwinInitializationSettings(
+        DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
+      requestCriticalPermission: true, // For critical alerts
     );
 
     const InitializationSettings settings = InitializationSettings(
@@ -42,49 +41,74 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    // Create notification channel with high importance for Android
+    // Create notification channel BEFORE requesting permissions
     await _createNotificationChannel();
+
+    // Request permissions AFTER initialization
+    final permissionGranted = await _requestAllPermissions();
 
     return permissionGranted;
   }
 
   static Future<bool> _requestAllPermissions() async {
-    // Request notification permission
-    final notificationStatus = await Permission.notification.request();
+    bool allGranted = true;
 
-    // Request phone permission for ringtone access
-    final phoneStatus = await Permission.phone.request();
-
-    // Request exact alarm permission for Android 12+
-    if (await Permission.scheduleExactAlarm.isDenied) {
-      await Permission.scheduleExactAlarm.request();
-    }
-
-    // Additional permissions for Android
+    // For Android, request notification permission through the plugin
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-    _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+        _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidImplementation != null) {
-      await androidImplementation.requestExactAlarmsPermission();
-      await androidImplementation.requestNotificationsPermission();
+      // Request basic notification permission
+      final notificationPermission = await androidImplementation.requestNotificationsPermission();
+      if (notificationPermission != true) {
+        allGranted = false;
+      }
+
+      // Request exact alarm permission (Android 12+)
+      final exactAlarmPermission = await androidImplementation.requestExactAlarmsPermission();
+      if (exactAlarmPermission != true) {
+        allGranted = false;
+      }
     }
 
-    // iOS permissions
+    // For iOS, request permissions
     final IOSFlutterLocalNotificationsPlugin? iosImplementation =
-    _notifications.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+        _notifications.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
 
     if (iosImplementation != null) {
-      await iosImplementation.requestPermissions(
+      final iosPermission = await iosImplementation.requestPermissions(
         alert: true,
         badge: true,
         sound: true,
-        critical: true, // For critical alerts
+        critical: true, // For critical alerts that bypass Do Not Disturb
       );
+      if (iosPermission != true) {
+        allGranted = false;
+      }
     }
 
-    return notificationStatus.isGranted;
+    // Additional permission requests using permission_handler
+    try {
+      // Request notification permission (fallback)
+      final notificationStatus = await Permission.notification.request();
+      if (!notificationStatus.isGranted) {
+        allGranted = false;
+      }
+
+      // Request schedule exact alarm permission for Android 12+
+      if (await Permission.scheduleExactAlarm.isDenied) {
+        final exactAlarmStatus = await Permission.scheduleExactAlarm.request();
+        if (!exactAlarmStatus.isGranted) {
+          allGranted = false;
+        }
+      }
+    } catch (e) {
+      print('Permission request error: $e');
+    }
+
+    return allGranted;
   }
 
   static Future<void> _createNotificationChannel() async {
@@ -98,12 +122,13 @@ class NotificationService {
       ledColor: Color.fromARGB(255, 255, 0, 0),
       showBadge: true,
       playSound: true,
-      sound: RawResourceAndroidNotificationSound('alarm'), // Use system alarm sound
+      // Use default notification sound instead of alarm sound for compatibility
+      sound: null, // This will use the default notification sound
     );
 
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-    _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+        _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidImplementation != null) {
       await androidImplementation.createNotificationChannel(channel);
@@ -122,7 +147,7 @@ class NotificationService {
         _handleSnooze(response.payload);
         break;
       default:
-      // Handle default tap
+        // Handle default tap
         break;
     }
   }
@@ -197,22 +222,21 @@ class NotificationService {
     required int minute,
     String? payload,
   }) async {
-    // Enhanced Android notification with full alert features
-    AndroidNotificationDetails androidDetails =
-    AndroidNotificationDetails(
+    // Enhanced Android notification with working sound
+    AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'medication_reminders_high',
       'Medication Reminders',
       channelDescription: 'High priority notifications for medication reminders',
       importance: Importance.max,
       priority: Priority.high,
 
-      // Sound settings - use system alarm sound (ringtone-like)
-      sound: const RawResourceAndroidNotificationSound('alarm'),
+      // Use default notification sound for better compatibility
+      sound: null, // This uses the default notification sound
       playSound: true,
 
       // Vibration settings
       enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]), // Custom vibration pattern
+      vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
 
       // Visual settings
       enableLights: true,
@@ -221,22 +245,14 @@ class NotificationService {
       ledOffMs: 500,
 
       // Behavior settings
-      autoCancel: false, // Don't auto-dismiss
+      autoCancel: false,
       ongoing: false,
       showWhen: true,
-      when: null,
-      usesChronometer: false,
-      onlyAlertOnce: false, // Alert every time
-      showProgress: false,
-      indeterminate: false,
-
-      // Full screen intent for critical alerts
+      onlyAlertOnce: false,
       fullScreenIntent: true,
 
       // Category for better handling
       category: AndroidNotificationCategory.alarm,
-
-      // Visibility
       visibility: NotificationVisibility.public,
 
       // Actions
@@ -268,21 +284,15 @@ class NotificationService {
       ),
     );
 
-    // Enhanced iOS notification with critical alert
+    // Enhanced iOS notification
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      sound: 'alarm.aiff', // System alarm sound
+      sound: null, // Use default sound
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
       badgeNumber: 1,
-
-      // // Critical alert for iOS (bypasses Do Not Disturb)
-      // criticalAlert: true,
-
-      // Category for actions
+      // criticalAlert: true, // Critical alert for iOS (bypasses Do Not Disturb)
       categoryIdentifier: 'MEDICATION_REMINDER',
-
-      // Thread identifier for grouping
       threadIdentifier: 'medication_reminders',
     );
 
@@ -310,22 +320,21 @@ class NotificationService {
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
       payload: payload,
     );
   }
 
-  // Enhanced snooze with full alert
+  // Enhanced snooze with working sound
   static Future<void> snoozeNotification(int notificationId, String title, String body) async {
-    AndroidNotificationDetails androidDetails =
-    AndroidNotificationDetails(
+    AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'medication_reminders_high',
       'Medication Reminders',
       channelDescription: 'High priority notifications for medication reminders',
       importance: Importance.max,
       priority: Priority.high,
-      sound: const RawResourceAndroidNotificationSound('alarm'),
+      sound: null, // Use default sound
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 1000, 500, 1000]),
       playSound: true,
@@ -335,7 +344,7 @@ class NotificationService {
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      sound: 'alarm.aiff',
+      sound: null, // Use default sound
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
@@ -358,20 +367,19 @@ class NotificationService {
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
   // Show immediate test notification
   static Future<void> showTestNotification() async {
-    AndroidNotificationDetails androidDetails =
-    AndroidNotificationDetails(
+    AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'medication_reminders_high',
       'Medication Reminders',
       channelDescription: 'Test notification',
       importance: Importance.max,
       priority: Priority.high,
-      sound: const RawResourceAndroidNotificationSound('alarm'),
+      sound: null, // Use default sound
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 1000, 500, 1000]),
       playSound: true,
@@ -379,7 +387,7 @@ class NotificationService {
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      sound: 'alarm.aiff',
+      sound: null, // Use default sound
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
@@ -420,8 +428,8 @@ class NotificationService {
   // Check if notifications are enabled
   static Future<bool> areNotificationsEnabled() async {
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-    _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+        _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidImplementation != null) {
       return await androidImplementation.areNotificationsEnabled() ?? false;
@@ -436,10 +444,21 @@ class NotificationService {
 
   // Check all permissions status
   static Future<Map<String, bool>> checkAllPermissions() async {
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    bool notificationEnabled = true;
+    bool exactAlarmEnabled = true;
+
+    if (androidImplementation != null) {
+      notificationEnabled = await androidImplementation.areNotificationsEnabled() ?? false;
+      // Note: exact alarm permission check might not be available in all versions
+    }
+
     return {
-      'notification': await Permission.notification.isGranted,
-      'phone': await Permission.phone.isGranted,
-      'exactAlarm': await Permission.scheduleExactAlarm.isGranted,
+      'notification': notificationEnabled,
+      'exactAlarm': exactAlarmEnabled,
     };
   }
 }

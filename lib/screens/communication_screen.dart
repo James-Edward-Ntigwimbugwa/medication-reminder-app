@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CommunicationScreen extends StatefulWidget {
-  const CommunicationScreen({Key? key}) : super(key: key);
+  const CommunicationScreen({super.key});
 
   @override
   State<CommunicationScreen> createState() => _CommunicationScreenState();

@@ -285,7 +285,7 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
                         onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     _loading
                         ? const CircularProgressIndicator(strokeWidth: 2)
                         : IconButton(

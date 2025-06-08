@@ -6,7 +6,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/medication.dart';
 
@@ -27,13 +26,10 @@ class NotificationService {
     "assets/audios/art-of-samples-buzz-120-bpm-audio-logo-245396.mp3",
   ];
 
-  // Initialize notifications and alarm manager
+  // Initialize notifications
   static Future<bool> initialize() async {
     // Initialize timezone
     tz.initializeTimeZones();
-
-    // Initialize Android Alarm Manager
-    await AndroidAlarmManager.initialize();
 
     // Initialize the plugin first
     const AndroidInitializationSettings androidSettings =
@@ -189,14 +185,17 @@ class NotificationService {
     if (payload != null) {
       developer.log('Marking medication as taken: $payload');
       _stopAlarm();
-      // Cancel the alarm for this medication time
+      // Cancel the notification for this medication time
       final parts = payload.split(':');
       if (parts.length == 2) {
         final medicationId = int.tryParse(parts[0]);
         final reminderIndex = int.tryParse(parts[1]);
         if (medicationId != null && reminderIndex != null) {
-          final alarmId = _generateAlarmId(medicationId, reminderIndex);
-          AndroidAlarmManager.cancel(alarmId);
+          final notificationId = _generateNotificationId(
+            medicationId,
+            reminderIndex,
+          );
+          _notifications.cancel(notificationId);
         }
       }
     }
@@ -227,10 +226,9 @@ class NotificationService {
     }
   }
 
-  // Callback function for AndroidAlarmManager - must be static and top-level
-  @pragma('vm:entry-point')
-  static void alarmCallback() {
-    _playAlarmSound();
+  // Play alarm sound when notification is received
+  static Future<void> playAlarmOnNotification() async {
+    await _playAlarmSound();
   }
 
   // Play alarm sound continuously
@@ -279,11 +277,11 @@ class NotificationService {
     }
   }
 
-  // Schedule notifications for a medication with alarm
+  // Schedule notifications for a medication
   static Future<void> scheduleMedicationReminders(Medication medication) async {
     if (medication.id == null) return;
 
-    // Cancel existing notifications and alarms for this medication
+    // Cancel existing notifications for this medication
     await cancelMedicationReminders(medication.id!);
 
     for (int i = 0; i < medication.reminderTimes.length; i++) {
@@ -299,9 +297,8 @@ class NotificationService {
 
       if (hour == null || minute == null) continue;
 
-      // Create unique notification and alarm IDs
+      // Create unique notification ID
       final notificationId = _generateNotificationId(medication.id!, i);
-      final alarmId = _generateAlarmId(medication.id!, i);
 
       // Schedule daily recurring notification
       await _scheduleRepeatingNotification(
@@ -312,45 +309,6 @@ class NotificationService {
         minute: minute,
         payload: '${medication.id}:$i',
       );
-
-      // Schedule daily recurring alarm
-      await _scheduleRepeatingAlarm(alarmId, hour, minute);
-    }
-  }
-
-  // Fixed method: Added the missing _scheduleRepeatingAlarm method
-  static Future<void> _scheduleRepeatingAlarm(
-    int alarmId,
-    int hour,
-    int minute,
-  ) async {
-    try {
-      // Calculate next occurrence time
-      final now = DateTime.now();
-      var scheduledTime = DateTime(now.year, now.month, now.day, hour, minute);
-
-      // If the time has passed today, schedule for tomorrow
-      if (scheduledTime.isBefore(now)) {
-        scheduledTime = scheduledTime.add(const Duration(days: 1));
-      }
-
-      final duration = scheduledTime.difference(now);
-
-      await AndroidAlarmManager.periodic(
-        const Duration(days: 1), // Repeat daily
-        alarmId,
-        alarmCallback,
-        startAt: scheduledTime,
-        exact: true,
-        wakeup: true,
-        allowWhileIdle: true,
-      );
-
-      developer.log(
-        'Scheduled repeating alarm $alarmId for ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}',
-      );
-    } catch (e) {
-      developer.log('Error scheduling repeating alarm: $e');
     }
   }
 
@@ -436,11 +394,8 @@ class NotificationService {
       sound: 'alarm.aiff', // System alarm sound
       presentAlert: true,
       presentBadge: true,
-      presentSound: false, // Custom sound handled by AudioPlayer
+      presentSound: true,
       badgeNumber: 1,
-
-      // // Critical alert for iOS (bypasses Do Not Disturb)
-      // criticalAlert: true,
 
       // Category for actions
       categoryIdentifier: 'MEDICATION_REMINDER',
@@ -477,7 +432,7 @@ class NotificationService {
     );
   }
 
-  // Fixed snooze method: Corrected parameter count and variable definitions
+  // Snooze notification for 10 minutes
   static Future<void> snoozeNotification(
     int notificationId,
     String title,
@@ -498,13 +453,22 @@ class NotificationService {
       autoCancel: false,
       fullScreenIntent: true,
       category: AndroidNotificationCategory.alarm,
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          'mark_taken',
+          '✅ Mark as Taken',
+          showsUserInterface: true,
+          allowGeneratedReplies: false,
+          contextual: true,
+        ),
+      ],
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       sound: 'alarm.aiff',
       presentAlert: true,
       presentBadge: true,
-      presentSound: false,
+      presentSound: true,
     );
 
     NotificationDetails notificationDetails = NotificationDetails(
@@ -515,7 +479,7 @@ class NotificationService {
     final snoozeTime = DateTime.now().add(const Duration(minutes: 10));
     final tzSnoozeTime = tz.TZDateTime.from(snoozeTime, tz.local);
 
-    // Schedule snoozed notification
+    // Schedule snoozed notification with different ID
     await _notifications.zonedSchedule(
       notificationId + 1000, // Different ID for snoozed notification
       '⏰ $title',
@@ -525,21 +489,11 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-    );
-
-    // Schedule snoozed alarm
-    final snoozeAlarmId = _generateAlarmId(medicationId, reminderIndex) + 1000;
-    await AndroidAlarmManager.oneShot(
-      const Duration(minutes: 10),
-      snoozeAlarmId,
-      alarmCallback,
-      exact: true,
-      wakeup: true,
-      allowWhileIdle: true,
+      payload: '$medicationId:$reminderIndex',
     );
   }
 
-  // Show immediate test notification with alarm
+  // Show immediate test notification
   static Future<void> showTestNotification() async {
     AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'medication_reminders_high',
@@ -551,13 +505,25 @@ class NotificationService {
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 1000, 500, 1000]),
       fullScreenIntent: true,
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          'mark_taken',
+          '✅ Mark as Taken',
+          showsUserInterface: true,
+        ),
+        AndroidNotificationAction(
+          'snooze',
+          '⏰ Snooze 10 min',
+          showsUserInterface: false,
+        ),
+      ],
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       sound: 'alarm.aiff',
       presentAlert: true,
       presentBadge: true,
-      presentSound: false,
+      presentSound: true,
     );
 
     NotificationDetails notificationDetails = NotificationDetails(
@@ -568,42 +534,33 @@ class NotificationService {
     await _notifications.show(
       999,
       '💊 Test Medication Reminder',
-      'This is how your medication reminders will appear. The alarm will play for 1 minute.',
+      'This is how your medication reminders will appear. Tap the actions below to test them.',
       notificationDetails,
     );
 
-    // Play test alarm
+    // Play test alarm sound
     _playAlarmSound();
   }
 
-  // Cancel all notifications and alarms for a specific medication
+  // Cancel all notifications for a specific medication
   static Future<void> cancelMedicationReminders(int medicationId) async {
     for (int i = 0; i < 10; i++) {
       final notificationId = _generateNotificationId(medicationId, i);
-      final alarmId = _generateAlarmId(medicationId, i);
-
       await _notifications.cancel(notificationId);
-      await AndroidAlarmManager.cancel(alarmId);
+      // Also cancel potential snoozed notifications
+      await _notifications.cancel(notificationId + 1000);
     }
   }
 
-  // Cancel all notifications and alarms
+  // Cancel all notifications
   static Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
-    // Note: AndroidAlarmManager doesn't have cancelAll,
-    // you'll need to track and cancel individual alarms
     _stopAlarm();
   }
 
   // Generate unique notification ID
   static int _generateNotificationId(int medicationId, int reminderIndex) {
     return medicationId * 100 + reminderIndex;
-  }
-
-  // Generate unique alarm ID
-  static int _generateAlarmId(int medicationId, int reminderIndex) {
-    return medicationId * 200 +
-        reminderIndex; // Different range from notifications
   }
 
   // Check if notifications are enabled
@@ -636,12 +593,10 @@ class NotificationService {
 
     if (androidImplementation != null) {
       await androidImplementation.areNotificationsEnabled();
-      // Note: exact alarm permission check might not be available in all versions
     }
 
     return {
       'notification': await Permission.notification.isGranted,
-      'phone': await Permission.phone.isGranted,
       'exactAlarm': await Permission.scheduleExactAlarm.isGranted,
     };
   }
@@ -653,4 +608,9 @@ class NotificationService {
 
   // Check if alarm is currently playing
   static bool get isAlarmPlaying => _isAlarmPlaying;
+
+  // Manual method to trigger alarm sound (can be called from notification callback)
+  static Future<void> triggerAlarmSound() async {
+    await _playAlarmSound();
+  }
 }

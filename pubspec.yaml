@@ -40,8 +40,17 @@ dependencies:
   google_generative_ai: ^0.4.7
   flutter_local_notifications: ^17.2.2
   permission_handler: ^12.0.0+1
-  android_alarm_manager_plus: ^3.0.4
   audioplayers: ^5.2.1
+  shared_preferences: ^2.3.0
+  crypto: ^3.0.5
+ 
+  # If you need background work, use a more recent alternative
+  # workmanager: ^0.5.2  # Remove this line if causing issues
+  
+  # Alternative for background tasks (if needed)
+  flutter_background_service: ^5.0.5  # More stable alternative
+  
+
 
 dev_dependencies:
   flutter_test:

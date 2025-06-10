@@ -1,3 +1,5 @@
+// Updated Chatbot to ensure scroll-to-bottom works after response
+// Added: Settings icon removed and AppBar styled with only one title and subtitle
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/medalpaca_service.dart';
@@ -74,48 +76,76 @@ class _HealthInfoScreenState extends State<HealthInfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Health Information Hub"),
-        backgroundColor: Colors.teal,
-        centerTitle: true,
-        elevation: 4,
-      ),
-      body: ListView(
-        children: [
-          const SizedBox(height: 10),
-          _buildHealthCard(
-            title: "Common Health Tips",
-            description:
-                "Explore daily practices to maintain a healthy lifestyle.",
-            url:
-                "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
-            context: context,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 120,
+            backgroundColor: Colors.teal,
+            flexibleSpace: FlexibleSpaceBar(
+              centerTitle: true,
+              titlePadding: const EdgeInsets.only(bottom: 8.0),
+              title: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: const [
+                  Text(
+                    "Health Information Hub",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "Jua Afya Yako",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white70,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          _buildHealthCard(
-            title: "Nutrition",
-            description: "Understand the importance of balanced nutrition.",
-            url: "https://www.who.int/health-topics/nutrition",
-            context: context,
+          SliverList(
+            delegate: SliverChildListDelegate([
+              const SizedBox(height: 10),
+              _buildHealthCard(
+                title: "Common Health Tips",
+                description:
+                    "Explore daily practices to maintain a healthy lifestyle.",
+                url:
+                    "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+                context: context,
+              ),
+              _buildHealthCard(
+                title: "Lishe bora\nNutrition",
+                description:
+                    "Jifunze na kuelewa umuhimu wa lishe bora\n Understand the importance of balanced nutrition.",
+                url: "https://www.who.int/health-topics/nutrition",
+                context: context,
+              ),
+              _buildHealthCard(
+                title: "Mental Health",
+                description:
+                    "Learn about mental well-being and stress management.",
+                url: "https://www.who.int/health-topics/mental-health",
+                context: context,
+              ),
+              _buildHealthCard(
+                title: "Maternal & Child Health",
+                description:
+                    "Vital guidance for pregnant mothers and children.",
+                url: "https://www.unicef.org/health",
+                context: context,
+              ),
+              _buildHealthCard(
+                title: "Disease Prevention",
+                description: "Protect yourself from malaria, HIV, TB and more.",
+                url: "https://www.cdc.gov/globalhealth/index.html",
+                context: context,
+              ),
+              const SizedBox(height: 90),
+            ]),
           ),
-          _buildHealthCard(
-            title: "Mental Health",
-            description: "Learn about mental well-being and stress management.",
-            url: "https://www.who.int/health-topics/mental-health",
-            context: context,
-          ),
-          _buildHealthCard(
-            title: "Maternal & Child Health",
-            description: "Vital guidance for pregnant mothers and children.",
-            url: "https://www.unicef.org/health",
-            context: context,
-          ),
-          _buildHealthCard(
-            title: "Disease Prevention",
-            description: "Protect yourself from malaria, HIV, TB and more.",
-            url: "https://www.cdc.gov/globalhealth/index.html",
-            context: context,
-          ),
-          const SizedBox(height: 90),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -128,6 +158,8 @@ class _HealthInfoScreenState extends State<HealthInfoScreen> {
   }
 }
 
+// ChatbotWidget remains as updated with scroll-to-bottom fix.
+
 class ChatbotWidget extends StatefulWidget {
   final MedAlpacaService medAlpacaService;
   const ChatbotWidget({required this.medAlpacaService, super.key});
@@ -138,6 +170,7 @@ class ChatbotWidget extends StatefulWidget {
 
 class _ChatbotWidgetState extends State<ChatbotWidget> {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [];
   bool _loading = false;
 
@@ -151,19 +184,33 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
       _loading = true;
     });
 
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
     try {
       final response = await widget.medAlpacaService.getChatResponse(query);
       setState(() {
         _messages.add({'sender': 'bot', 'text': response});
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     } catch (e) {
       setState(() {
-        _messages.add({'sender': 'bot', 'text': 'Error: ${e.toString()}'});
+        _messages.add({'sender': 'bot', 'text': 'Error: \${e.toString()}'});
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     } finally {
       setState(() {
         _loading = false;
       });
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent + 50,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -211,6 +258,7 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
               const Divider(),
               Expanded(
                 child: ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   itemCount: _messages.length,
                   itemBuilder: (context, index) {
@@ -237,7 +285,7 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
                         onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     _loading
                         ? const CircularProgressIndicator(strokeWidth: 2)
                         : IconButton(

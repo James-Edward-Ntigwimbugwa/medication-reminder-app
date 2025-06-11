@@ -1,13 +1,23 @@
 import 'dart:typed_data';
 import 'dart:ui';
 import 'dart:math';
-import 'dart:developer' as developer;
+import 'package:doziyangu/utils/alarm_sounds.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../database/medication_db.dart';
 import '../models/medication.dart';
+
+// TOP-LEVEL ALARM CALLBACK FUNCTION - MUST BE OUTSIDE CLASS
+@pragma('vm:entry-point')
+void alarmCallback() {
+  print('Alarm callback triggered!');
+  NotificationService.playAlarmSound();
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -15,123 +25,109 @@ class NotificationService {
   NotificationService._internal();
 
   static final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+  FlutterLocalNotificationsPlugin();
 
   static final AudioPlayer _audioPlayer = AudioPlayer();
   static bool _isAlarmPlaying = false;
+  static int? _currentAlarmId;
 
-  // Alarm sounds from the Alarms class
-  static const List<String> _alarmSounds = [
-    "assets/audios/retro-audio-logo-94648.mp3",
-    "assets/audios/art-of-samples-buzz-120-bpm-audio-logo-245396.mp3",
-  ];
-
-  // Initialize notifications
+  // Initialize notifications and alarm manager
   static Future<bool> initialize() async {
-    // Initialize timezone
-    tz.initializeTimeZones();
+    try {
+      // Initialize timezone
+      tz.initializeTimeZones();
 
-    // Initialize the plugin first
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+      // Initialize Android Alarm Manager
+      final alarmInitialized = await AndroidAlarmManager.initialize();
+      print('AndroidAlarmManager initialized: $alarmInitialized');
 
-    const DarwinInitializationSettings iosSettings =
-        DarwinInitializationSettings(
-          requestAlertPermission: true,
-          requestBadgePermission: true,
-          requestSoundPermission: true,
-          requestCriticalPermission: true, // For critical alerts
-        );
+      // Request permissions first
+      final permissionGranted = await _requestAllPermissions();
+      print('Permissions granted: $permissionGranted');
 
-    const InitializationSettings settings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
+      const AndroidInitializationSettings androidSettings =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    await _notifications.initialize(
-      settings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
+      const DarwinInitializationSettings iosSettings =
+      DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
 
-    // Create notification channel BEFORE requesting permissions
-    await _createNotificationChannel();
+      const InitializationSettings settings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
 
-    // Request permissions AFTER initialization
-    final permissionGranted = await _requestAllPermissions();
+      final notificationInitialized = await _notifications.initialize(
+        settings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+      print('Notifications initialized: $notificationInitialized');
 
-    return permissionGranted;
+      // Create notification channel with high importance for Android
+      await _createNotificationChannel();
+
+      return permissionGranted && alarmInitialized;
+    } catch (e) {
+      print('Error initializing NotificationService: $e');
+      return false;
+    }
   }
 
   static Future<bool> _requestAllPermissions() async {
-    bool allGranted = true;
-
-    // Request exact alarm permission for Android 12+
-    if (await Permission.scheduleExactAlarm.isDenied) {
-      await Permission.scheduleExactAlarm.request();
-    }
-
-    // Additional permissions for Android
-    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        _notifications
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >();
-
-    if (androidImplementation != null) {
-      // Request basic notification permission
-      final notificationPermission =
-          await androidImplementation.requestNotificationsPermission();
-      if (notificationPermission != true) {
-        allGranted = false;
-      }
-
-      // Request exact alarm permission (Android 12+)
-      final exactAlarmPermission =
-          await androidImplementation.requestExactAlarmsPermission();
-      if (exactAlarmPermission != true) {
-        allGranted = false;
-      }
-    }
-
-    // For iOS, request permissions
-    final IOSFlutterLocalNotificationsPlugin? iosImplementation =
-        _notifications
-            .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin
-            >();
-
-    if (iosImplementation != null) {
-      final iosPermission = await iosImplementation.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-        critical: true, // For critical alerts that bypass Do Not Disturb
-      );
-      if (iosPermission != true) {
-        allGranted = false;
-      }
-    }
-
-    // Additional permission requests using permission_handler
     try {
-      // Request notification permission (fallback)
+      // Request notification permission
       final notificationStatus = await Permission.notification.request();
-      if (!notificationStatus.isGranted) {
-        allGranted = false;
-      }
+      print('Notification permission: ${notificationStatus.isGranted}');
 
-      // Request schedule exact alarm permission for Android 12+
+      // Request phone permission for ringtone access
+      final phoneStatus = await Permission.phone.request();
+      print('Phone permission: ${phoneStatus.isGranted}');
+
+      // Request exact alarm permission for Android 12+
       if (await Permission.scheduleExactAlarm.isDenied) {
-        final exactAlarmStatus = await Permission.scheduleExactAlarm.request();
-        if (!exactAlarmStatus.isGranted) {
-          allGranted = false;
-        }
+        await Permission.scheduleExactAlarm.request();
       }
-    } catch (e) {
-      developer.log('Permission request error: $e');
-    }
+      final exactAlarmStatus = await Permission.scheduleExactAlarm.status;
+      print('Exact alarm permission: ${exactAlarmStatus.isGranted}');
 
-    return allGranted;
+      // Request system alert window permission for alarm overlay
+      final systemAlertWindowStatus = await Permission.systemAlertWindow.request();
+      print('System alert window permission: ${systemAlertWindowStatus.isGranted}');
+
+      // Additional permissions for Android
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+      _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        final exactAlarmPermission = await androidImplementation.requestExactAlarmsPermission();
+        final notificationPermission = await androidImplementation.requestNotificationsPermission();
+        print('Android exact alarm permission: $exactAlarmPermission');
+        print('Android notification permission: $notificationPermission');
+      }
+
+      // iOS permissions
+      final IOSFlutterLocalNotificationsPlugin? iosImplementation =
+      _notifications.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+
+      if (iosImplementation != null) {
+        await iosImplementation.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+          critical: true, // For critical alerts
+        );
+      }
+
+      return notificationStatus.isGranted;
+    } catch (e) {
+      print('Error requesting permissions: $e');
+      return false;
+    }
   }
 
   static Future<void> _createNotificationChannel() async {
@@ -144,17 +140,12 @@ class NotificationService {
       enableLights: true,
       ledColor: Color.fromARGB(255, 255, 0, 0),
       showBadge: true,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound(
-        'alarm',
-      ), // Use system alarm sound
+      playSound: false, // We'll handle sound with AudioPlayer
     );
 
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        _notifications
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >();
+    _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidImplementation != null) {
       await androidImplementation.createNotificationChannel(channel);
@@ -162,7 +153,7 @@ class NotificationService {
   }
 
   static void _onNotificationTapped(NotificationResponse response) {
-    developer.log('Notification tapped: ${response.payload}');
+    print('Notification tapped: ${response.payload}');
 
     // Stop any playing alarm when notification is tapped
     _stopAlarm();
@@ -176,26 +167,23 @@ class NotificationService {
         _handleSnooze(response.payload);
         break;
       default:
-        // Handle default tap
+      // Handle default tap - stop alarm
         break;
     }
   }
 
   static void _handleMarkAsTaken(String? payload) {
     if (payload != null) {
-      developer.log('Marking medication as taken: $payload');
+      print('Marking medication as taken: $payload');
       _stopAlarm();
-      // Cancel the notification for this medication time
+      // Cancel the alarm for this medication time
       final parts = payload.split(':');
       if (parts.length == 2) {
         final medicationId = int.tryParse(parts[0]);
         final reminderIndex = int.tryParse(parts[1]);
         if (medicationId != null && reminderIndex != null) {
-          final notificationId = _generateNotificationId(
-            medicationId,
-            reminderIndex,
-          );
-          _notifications.cancel(notificationId);
+          final alarmId = _generateAlarmId(medicationId, reminderIndex);
+          AndroidAlarmManager.cancel(alarmId);
         }
       }
     }
@@ -203,112 +191,68 @@ class NotificationService {
 
   static void _handleSnooze(String? payload) {
     if (payload != null) {
-      developer.log('Snoozing medication: $payload');
+      print('Snoozing medication: $payload');
       _stopAlarm();
       final parts = payload.split(':');
       if (parts.length == 2) {
         final medicationId = int.tryParse(parts[0]);
         final reminderIndex = int.tryParse(parts[1]);
         if (medicationId != null && reminderIndex != null) {
-          final notificationId = _generateNotificationId(
-            medicationId,
-            reminderIndex,
-          );
+          final notificationId = _generateNotificationId(medicationId, reminderIndex);
           snoozeNotification(
-            notificationId,
-            'Medication Reminder (Snoozed)',
-            'Time to take your medication',
-            medicationId,
-            reminderIndex,
-          );
+              notificationId,
+              'Medication Reminder (Snoozed)',
+              'Time to take your medication',
+              medicationId,
+              reminderIndex);
         }
       }
     }
   }
 
-  // Play alarm sound when notification is received
-  static Future<void> playAlarmOnNotification() async {
-    await _playAlarmSound();
-  }
-
   // Play alarm sound continuously
-  static Future<void> _playAlarmSound() async {
-    if (_isAlarmPlaying) return;
+  static Future<void> playAlarmSound() async {
+    debugPrint('playAlarmSound called'); // Add this line
+    if (_isAlarmPlaying) {
+      print('Alarm already playing, skipping...');
+      return;
+    }
 
+    print('Starting alarm sound...');
     _isAlarmPlaying = true;
 
-    // Select random alarm sound
-    final random = Random();
-    final selectedAlarm = _alarmSounds[random.nextInt(_alarmSounds.length)];
-
     try {
+      // Select random alarm sound
+      final random = Random();
+      final selectedAlarm = Alarms.alarmSounds[random.nextInt(Alarms.alarmSounds.length)];
+      print('Selected alarm sound: $selectedAlarm');
+
+      // Stop any previous audio first
+      await _audioPlayer.stop();
+      print('Audio player stopped'); // Add this line
+
       // Set audio player mode for alarm
       await _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.setVolume(1.0); // Maximum volume
+      print('Audio player mode and volume set'); // Add this line
 
       // Play the alarm sound in loop
       await _audioPlayer.play(AssetSource(selectedAlarm));
+      print('Alarm playing: $selectedAlarm');
 
-      developer.log('Playing alarm: $selectedAlarm');
+      print('Alarm playing: $selectedAlarm');
 
-      // Stop alarm after 1 minute if not stopped manually
-      Future.delayed(const Duration(minutes: 1), () {
+      // Stop alarm after 2 minutes if not stopped manually
+      Future.delayed(const Duration(minutes: 2), () {
         if (_isAlarmPlaying) {
+          print('Auto-stopping alarm after 2 minutes');
           _stopAlarm();
         }
       });
     } catch (e) {
-      developer.log('Error playing alarm: $e');
+      print('Error playing alarm: $e');
       _isAlarmPlaying = false;
-    }
-  }
-
-  // Stop alarm sound
-  static Future<void> _stopAlarm() async {
-    if (!_isAlarmPlaying) return;
-
-    try {
-      await _audioPlayer.stop();
-      _isAlarmPlaying = false;
-      developer.log('Alarm stopped');
-    } catch (e) {
-      developer.log('Error stopping alarm: $e');
-    }
-  }
-
-  // Schedule notifications for a medication
-  static Future<void> scheduleMedicationReminders(Medication medication) async {
-    if (medication.id == null) return;
-
-    // Cancel existing notifications for this medication
-    await cancelMedicationReminders(medication.id!);
-
-    for (int i = 0; i < medication.reminderTimes.length; i++) {
-      final timeString = medication.reminderTimes[i];
-      final dose = i < medication.doses.length ? medication.doses[i] : '1 dose';
-
-      // Parse time string (assuming format "HH:mm")
-      final timeParts = timeString.split(':');
-      if (timeParts.length != 2) continue;
-
-      final hour = int.tryParse(timeParts[0]);
-      final minute = int.tryParse(timeParts[1]);
-
-      if (hour == null || minute == null) continue;
-
-      // Create unique notification ID
-      final notificationId = _generateNotificationId(medication.id!, i);
-
-      // Schedule daily recurring notification
-      await _scheduleRepeatingNotification(
-        id: notificationId,
-        title: '💊 Medication Time!',
-        body: 'Take ${medication.name} (${medication.unit}) - $dose',
-        hour: hour,
-        minute: minute,
-        payload: '${medication.id}:$i',
-      );
     }
   }
 
@@ -320,155 +264,244 @@ class NotificationService {
     required int minute,
     String? payload,
   }) async {
-    // Enhanced Android notification with full alert features
-    AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'medication_reminders_high',
-      'Medication Reminders',
-      channelDescription:
-          'High priority notifications for medication reminders',
-      importance: Importance.max,
-      priority: Priority.high,
+    try {
+      // Android notification without sound (handled by AudioPlayer)
+      AndroidNotificationDetails androidDetails =
+      AndroidNotificationDetails(
+        'medication_reminders_high',
+        'Medication Reminders',
+        channelDescription: 'High priority notifications for medication reminders',
+        importance: Importance.max,
+        priority: Priority.high,
 
-      // Sound settings - use system alarm sound (ringtone-like)
-      sound: const RawResourceAndroidNotificationSound('alarm'),
-      playSound: true,
+        // No sound - handled by our custom alarm
+        playSound: false,
 
-      // Vibration settings
-      enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
+        // Vibration settings
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
+        // After vibration, play alarm sound
 
-      // Visual settings
-      enableLights: true,
-      ledColor: const Color.fromARGB(255, 255, 0, 0),
-      ledOnMs: 1000,
-      ledOffMs: 500,
+        // Visual settings
+        enableLights: true,
+        ledColor: const Color.fromARGB(255, 255, 0, 0),
+        ledOnMs: 1000,
+        ledOffMs: 500,
 
-      // Behavior settings
-      autoCancel: false, // Don't auto-dismiss
-      ongoing: false,
-      showWhen: true,
-      when: null,
-      usesChronometer: false,
-      onlyAlertOnce: false, // Alert every time
-      showProgress: false,
-      indeterminate: false,
+        // Behavior settings
+        autoCancel: false,
+        ongoing: true, // Keep notification persistent
+        showWhen: true,
+        onlyAlertOnce: false,
 
-      // Full screen intent for critical alerts
-      fullScreenIntent: true,
+        // Full screen intent for critical alerts
+        fullScreenIntent: true,
 
-      // Category for better handling
-      category: AndroidNotificationCategory.alarm,
-      visibility: NotificationVisibility.public,
+        // Category for better handling
+        category: AndroidNotificationCategory.alarm,
 
-      // Actions
-      actions: const <AndroidNotificationAction>[
-        AndroidNotificationAction(
-          'mark_taken',
-          '✅ Mark as Taken',
-          showsUserInterface: true,
-          allowGeneratedReplies: false,
-          contextual: true,
+        // Visibility
+        visibility: NotificationVisibility.public,
+
+        // Actions
+        actions: <AndroidNotificationAction>[
+          AndroidNotificationAction(
+            'mark_taken',
+            'Mark as Taken',
+            icon: const DrawableResourceAndroidBitmap('ic_check'), // Corrected: Use icon parameter
+            showsUserInterface: true,
+            allowGeneratedReplies: false,
+            contextual: true,
+          ),
+          AndroidNotificationAction(
+            'snooze', // Keep this short for readability
+            'Snooze 10 min',
+            icon: const DrawableResourceAndroidBitmap('ic_snooze'),  // Corrected: Use icon parameter
+            showsUserInterface: false,
+            allowGeneratedReplies: false,
+            contextual: true,
+          ),
+        ],
+
+        // Style
+        styleInformation: const BigTextStyleInformation(
+          'Tap "Mark as Taken" when you\'ve taken your medication, or "Snooze" to be reminded again in 10 minutes.',
+          htmlFormatBigText: true,
+          contentTitle: '💊 Medication Reminder',
+          htmlFormatContentTitle: true,
+          summaryText: 'DoziYangu App',
+          htmlFormatSummaryText: true,
         ),
-        AndroidNotificationAction(
-          'snooze',
-          '⏰ Snooze 10 min',
-          showsUserInterface: false,
-          allowGeneratedReplies: false,
-          contextual: true,
-        ),
-      ],
+      );
 
-      // Style
-      styleInformation: const BigTextStyleInformation(
-        'Tap "Mark as Taken" when you\'ve taken your medication, or "Snooze" to be reminded again in 10 minutes.',
-        htmlFormatBigText: true,
-        contentTitle: '💊 Medication Reminder',
-        htmlFormatContentTitle: true,
-        summaryText: 'DoziYangu App',
-        htmlFormatSummaryText: true,
-      ),
-    );
+      // iOS notification
+      const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: false, // Custom sound handled by AudioPlayer
+        badgeNumber: 1,
+        categoryIdentifier: 'MEDICATION_REMINDER',
+        threadIdentifier: 'medication_reminders',
+      );
 
-    // Enhanced iOS notification with critical alert
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      sound: 'alarm.aiff', // System alarm sound
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      badgeNumber: 1,
+      NotificationDetails notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
 
-      // Category for actions
-      categoryIdentifier: 'MEDICATION_REMINDER',
-      threadIdentifier: 'medication_reminders',
-    );
+      // Calculate next occurrence
+      final now = DateTime.now();
+      var scheduledDate = DateTime(now.year, now.month, now.day, hour, minute);
 
-    NotificationDetails notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+      // If the time has passed today, schedule for tomorrow
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
 
-    // Calculate next occurrence
-    final now = DateTime.now();
-    var scheduledDate = DateTime(now.year, now.month, now.day, hour, minute);
+      final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
 
-    // If the time has passed today, schedule for tomorrow
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+      print('Scheduling notification for: ${tzScheduledDate.toString()}');
+
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        tzScheduledDate,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
+        payload: payload,
+      );
+
+      print('Notification scheduled successfully');
+
+      // Play alarm sound after scheduling notification
+      playAlarmSound();
+    } catch (e) {
+      print('Error scheduling notification: $e');
     }
-
-    final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
-
-    await _notifications.zonedSchedule(
-      id,
-      title,
-      body,
-      tzScheduledDate,
-      notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
-      payload: payload,
-    );
   }
 
-  // Snooze notification for 10 minutes
+  // Stop alarm sound
+  static Future<void> _stopAlarm() async {
+    if (!_isAlarmPlaying) return;
+
+    try {
+      await _audioPlayer.stop();
+      _isAlarmPlaying = false;
+      print('Alarm stopped successfully');
+    } catch (e) {
+      print('Error stopping alarm: $e');
+    }
+  }
+
+  // Schedule notifications for a medication with alarm
+  static Future<void> scheduleMedicationReminders(Medication medication) async {
+    if (medication.id == null) {
+      print('Cannot schedule reminders: medication ID is null');
+      return;
+    }
+
+    print('Scheduling reminders for medication: ${medication.name}');
+
+    // Cancel existing notifications and alarms for this medication
+    await cancelMedicationReminders(medication.id!);
+
+    for (int i = 0; i < medication.reminderTimes.length; i++) {
+      final timeString = medication.reminderTimes[i];
+      final dose = i < medication.doses.length ? medication.doses[i] : '1 dose';
+
+      // Parse time string (assuming format "HH:mm")
+      final timeParts = timeString.split(':');
+      if (timeParts.length != 2) {
+        print('Invalid time format: $timeString');
+        continue;
+      }
+
+      final hour = int.tryParse(timeParts[0]);
+      final minute = int.tryParse(timeParts[1]);
+
+      if (hour == null || minute == null) {
+        print('Cannot parse time: $timeString');
+        continue;
+      }
+
+      // Create unique notification and alarm IDs
+      final notificationId = _generateNotificationId(medication.id!, i);
+      final alarmId = _generateAlarmId(medication.id!, i);
+
+      print('Scheduling notification $notificationId and alarm $alarmId for ${hour}:${minute}');
+
+      // Schedule daily recurring notification
+      await _scheduleRepeatingNotification(
+        id: notificationId,
+        title: '💊 Medication Time!',
+        body: 'Take ${medication.name} (${medication.unit}) - $dose',
+        hour: hour,
+        minute: minute,
+        payload: '${medication.id}:$i',
+      );
+
+      // Schedule daily recurring alarm
+      await _scheduleRepeatingAlarm(alarmId, hour, minute);
+    }
+  }
+
+  // Schedule repeating alarm using AndroidAlarmManager
+  static Future<void> _scheduleRepeatingAlarm(int alarmId, int hour, int minute) async {
+    try {
+      // Calculate next occurrence
+      final now = DateTime.now();
+      var alarmTime = DateTime(now.year, now.month, now.day, hour, minute);
+
+      // If the time has passed today, schedule for tomorrow
+      if (alarmTime.isBefore(now)) {
+        alarmTime = alarmTime.add(const Duration(days: 1));
+      }
+
+      print('Scheduling alarm $alarmId for ${alarmTime.toString()}');
+
+      // Schedule daily recurring alarm using the top-level callback
+      final success = await AndroidAlarmManager.periodic(
+        const Duration(days: 1), // Repeat every day
+        alarmId,
+        alarmCallback, // Use the top-level function
+        startAt: alarmTime,
+        exact: true,
+        wakeup: true,
+        allowWhileIdle: true,
+      );
+
+      print('Alarm scheduled successfully: $success');
+    } catch (e) {
+      print('Error scheduling alarm: $e');
+    }
+  }
+
+  // Enhanced snooze with alarm
   static Future<void> snoozeNotification(
-    int notificationId,
-    String title,
-    String body,
-    int medicationId,
-    int reminderIndex,
-  ) async {
-    AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      int notificationId, String title, String body, int medicationId, int reminderIndex) async {
+    AndroidNotificationDetails androidDetails =
+    AndroidNotificationDetails(
       'medication_reminders_high',
       'Medication Reminders',
-      channelDescription:
-          'High priority notifications for medication reminders',
+      channelDescription: 'High priority notifications for medication reminders',
       importance: Importance.max,
       priority: Priority.high,
-      sound: const RawResourceAndroidNotificationSound('alarm'),
+      playSound: false,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 1000, 500, 1000]),
       autoCancel: false,
       fullScreenIntent: true,
       category: AndroidNotificationCategory.alarm,
-      actions: const <AndroidNotificationAction>[
-        AndroidNotificationAction(
-          'mark_taken',
-          '✅ Mark as Taken',
-          showsUserInterface: true,
-          allowGeneratedReplies: false,
-          contextual: true,
-        ),
-      ],
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      sound: 'alarm.aiff',
       presentAlert: true,
       presentBadge: true,
-      presentSound: true,
+      presentSound: false,
     );
 
     NotificationDetails notificationDetails = NotificationDetails(
@@ -479,7 +512,7 @@ class NotificationService {
     final snoozeTime = DateTime.now().add(const Duration(minutes: 10));
     final tzSnoozeTime = tz.TZDateTime.from(snoozeTime, tz.local);
 
-    // Schedule snoozed notification with different ID
+    // Schedule snoozed notification
     await _notifications.zonedSchedule(
       notificationId + 1000, // Different ID for snoozed notification
       '⏰ $title',
@@ -488,42 +521,40 @@ class NotificationService {
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: '$medicationId:$reminderIndex',
+      UILocalNotificationDateInterpretation.absoluteTime,
+    );
+
+    // Schedule snoozed alarm
+    final snoozeAlarmId = _generateAlarmId(medicationId, reminderIndex) + 1000;
+    await AndroidAlarmManager.oneShot(
+      const Duration(minutes: 10),
+      snoozeAlarmId,
+      alarmCallback, // Use the top-level function
+      exact: true,
+      wakeup: true,
+      allowWhileIdle: true,
     );
   }
 
-  // Show immediate test notification
+  // Show immediate test notification with alarm
   static Future<void> showTestNotification() async {
-    AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    AndroidNotificationDetails androidDetails =
+    AndroidNotificationDetails(
       'medication_reminders_high',
       'Medication Reminders',
       channelDescription: 'Test notification',
       importance: Importance.max,
       priority: Priority.high,
-      sound: const RawResourceAndroidNotificationSound('alarm'),
+      playSound: false,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 1000, 500, 1000]),
       fullScreenIntent: true,
-      actions: const <AndroidNotificationAction>[
-        AndroidNotificationAction(
-          'mark_taken',
-          '✅ Mark as Taken',
-          showsUserInterface: true,
-        ),
-        AndroidNotificationAction(
-          'snooze',
-          '⏰ Snooze 10 min',
-          showsUserInterface: false,
-        ),
-      ],
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      sound: 'alarm.aiff',
       presentAlert: true,
       presentBadge: true,
-      presentSound: true,
+      presentSound: false,
     );
 
     NotificationDetails notificationDetails = NotificationDetails(
@@ -534,27 +565,44 @@ class NotificationService {
     await _notifications.show(
       999,
       '💊 Test Medication Reminder',
-      'This is how your medication reminders will appear. Tap the actions below to test them.',
+      'This is how your medication reminders will appear. The alarm will play for 2 minutes.',
       notificationDetails,
     );
 
-    // Play test alarm sound
-    _playAlarmSound();
+    // Play test alarm
+    playAlarmSound();
   }
 
-  // Cancel all notifications for a specific medication
+  // Cancel all notifications and alarms for a specific medication
+  // Cancel all notifications and alarms for a specific medication
+  // Cancel all notifications and alarms for a specific medication
   static Future<void> cancelMedicationReminders(int medicationId) async {
-    for (int i = 0; i < 10; i++) {
+    final medications = await MedicationDB.instance.readAllMedications();
+    final medication = medications.firstWhere((m) => m.id == medicationId, orElse: () => Medication(name: '', unit: '', frequency: '', reminderTimes: [], doses: [], takenStatus: []));
+
+    if (medication.name.isEmpty) {
+      print('Medication with ID $medicationId not found, cannot cancel reminders.');
+      return;
+    }
+
+    for (int i = 0; i < medication.reminderTimes.length; i++) {
       final notificationId = _generateNotificationId(medicationId, i);
+      final alarmId = _generateAlarmId(medicationId, i);
+
       await _notifications.cancel(notificationId);
-      // Also cancel potential snoozed notifications
-      await _notifications.cancel(notificationId + 1000);
+      try {
+        await AndroidAlarmManager.cancel(alarmId);
+      } catch (e) {
+        print('Error canceling alarm $alarmId: $e');
+      }
     }
   }
 
-  // Cancel all notifications
+  // Cancel all notifications and alarms
   static Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
+    // Note: AndroidAlarmManager doesn't have cancelAll,
+    // you'll need to track and cancel individual alarms
     _stopAlarm();
   }
 
@@ -563,13 +611,17 @@ class NotificationService {
     return medicationId * 100 + reminderIndex;
   }
 
+  // Generate unique alarm ID
+  // Generate unique alarm ID
+  static int _generateAlarmId(int medicationId, int reminderIndex) {
+    return medicationId * 200 + reminderIndex; // Different range from notifications
+  }
+
   // Check if notifications are enabled
   static Future<bool> areNotificationsEnabled() async {
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        _notifications
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >();
+    _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidImplementation != null) {
       return await androidImplementation.areNotificationsEnabled() ?? false;
@@ -578,26 +630,17 @@ class NotificationService {
   }
 
   // Get pending notifications
-  static Future<List<PendingNotificationRequest>>
-  getPendingNotifications() async {
+  static Future<List<PendingNotificationRequest>> getPendingNotifications() async {
     return await _notifications.pendingNotificationRequests();
   }
 
   // Check all permissions status
   static Future<Map<String, bool>> checkAllPermissions() async {
-    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        _notifications
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >();
-
-    if (androidImplementation != null) {
-      await androidImplementation.areNotificationsEnabled();
-    }
-
     return {
       'notification': await Permission.notification.isGranted,
+      'phone': await Permission.phone.isGranted,
       'exactAlarm': await Permission.scheduleExactAlarm.isGranted,
+      'systemAlertWindow': await Permission.systemAlertWindow.isGranted,
     };
   }
 
@@ -608,9 +651,4 @@ class NotificationService {
 
   // Check if alarm is currently playing
   static bool get isAlarmPlaying => _isAlarmPlaying;
-
-  // Manual method to trigger alarm sound (can be called from notification callback)
-  static Future<void> triggerAlarmSound() async {
-    await _playAlarmSound();
-  }
 }

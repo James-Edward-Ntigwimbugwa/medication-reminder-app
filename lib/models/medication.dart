@@ -6,6 +6,7 @@ class Medication {
   final List<String> reminderTimes; // e.g., ["08:00", "20:00"]
   final List<String> doses; // e.g., ["1 pill", "1 pill"]
   final List<bool> takenStatus; // For each reminder time
+  late bool notificationsEnabled = true; // Default to true
 
   Medication({
     this.id,

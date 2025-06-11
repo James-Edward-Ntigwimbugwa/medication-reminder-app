@@ -1,3 +1,4 @@
+// glass_alarm_overlay_dialog.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
@@ -67,8 +68,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
     _parsePayload();
     _animationController.forward();
-
-    // Start pulsing animation
     _animationController.repeat(reverse: true);
   }
 
@@ -85,7 +84,10 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
         _medicationId = int.tryParse(parts[0]) ?? 0;
         _reminderIndex = int.tryParse(parts[1]) ?? 0;
 
-        // Fetch medication details
+        // Cancel scheduled notification
+        final notificationId = NotificationService.generateNotificationId(_medicationId, _reminderIndex);
+        await NotificationService.cancelSpecificNotification(notificationId);
+
         try {
           final medications = await MedicationDB.instance.readAllMedications();
           _medication = medications.firstWhere(
@@ -121,7 +123,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
         }
       }
     } else {
-      // If no payload, show generic alarm
       setState(() {
         _medicationName = 'Medication Reminder';
         _dose = 'Time to take your medication';
@@ -133,9 +134,20 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
   Future<void> _handleTakeMedication() async {
     try {
       await NotificationService.markMedicationAsTaken(_medicationId, _reminderIndex);
+
+      // Update local state
+      if (_medication != null) {
+        final updatedStatus = List<bool>.from(_medication!.takenStatus);
+        if (_reminderIndex < updatedStatus.length) {
+          updatedStatus[_reminderIndex] = true;
+          setState(() {
+            _medication = _medication!.copyWith(takenStatus: updatedStatus);
+          });
+        }
+      }
+
       _dismissDialog();
 
-      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -163,7 +175,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
       await NotificationService.snoozeMedication(_medicationId, _reminderIndex);
       _dismissDialog();
 
-      // Show snooze confirmation
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -188,18 +199,13 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
   Future<void> _handleTurnOff() async {
     try {
-      // Stop the alarm completely
       await NotificationService.stopCurrentAlarm();
-
-      // Cancel any pending notifications for this specific medication time
       if (_medicationId > 0) {
-        final notificationId = _medicationId * 100 + _reminderIndex;
+        final notificationId = NotificationService.generateNotificationId(_medicationId, _reminderIndex);
         await NotificationService.cancelSpecificNotification(notificationId);
       }
-
       _dismissDialog();
 
-      // Show turn off confirmation
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -223,12 +229,8 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
   }
 
   void _dismissDialog() {
-    if (widget.onDismiss != null) {
-      widget.onDismiss!();
-    }
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
+    widget.onDismiss?.call();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -237,7 +239,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
       type: MaterialType.transparency,
       child: Stack(
         children: [
-          // Blurred background
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _opacityAnimation,
@@ -255,7 +256,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
             ),
           ),
 
-          // Main dialog content
           Center(
             child: AnimatedBuilder(
               animation: _animationController,
@@ -291,7 +291,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Pulsing medication icon
                                   AnimatedBuilder(
                                     animation: _pulseAnimation,
                                     builder: (context, child) {
@@ -319,7 +318,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
                                   const SizedBox(height: 20),
 
-                                  // Title
                                   const Text(
                                     '💊 MEDICATION TIME!',
                                     style: TextStyle(
@@ -338,7 +336,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
                                   const SizedBox(height: 16),
 
-                                  // Medication details
                                   Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
@@ -413,10 +410,8 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
                                   const SizedBox(height: 24),
 
-                                  // Action buttons
                                   Row(
                                     children: [
-                                      // Snooze button
                                       Expanded(
                                         child: _buildActionButton(
                                           icon: Icons.snooze,
@@ -428,7 +423,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
                                       const SizedBox(width: 12),
 
-                                      // Turn off button
                                       Expanded(
                                         child: _buildActionButton(
                                           icon: Icons.volume_off,
@@ -440,7 +434,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
                                       const SizedBox(width: 12),
 
-                                      // Take medication button
                                       Expanded(
                                         child: _buildActionButton(
                                           icon: Icons.check_circle,

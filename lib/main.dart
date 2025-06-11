@@ -94,19 +94,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Reschedule notifications when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
       MedicationDB.instance.rescheduleAllNotifications();
-      _checkPermissionStatus();
+      // _checkPermissionStatus();
     }
-  }
-
-  Future<void> _checkPermissionStatus() async {
-    final permissions =
-        await notification_svc.NotificationService.checkAllPermissions();
-    final allGranted = permissions.values.every((granted) => granted);
-
-    if (!mounted) return;
-    setState(() {
-      _showPermissionBanner = !allGranted;
-    });
   }
 
   void _showPermissionDialog() {

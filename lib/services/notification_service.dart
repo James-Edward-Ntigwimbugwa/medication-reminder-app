@@ -1,9 +1,5 @@
 // notification_service.dart
 import 'dart:typed_data';
-import 'dart:ui';
-import 'dart:math';
-import 'package:doziyangu/utils/alarm_sounds.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -27,6 +23,8 @@ class NotificationService {
 
   static final FlutterLocalNotificationsPlugin _notifications =
   FlutterLocalNotificationsPlugin();
+
+  static final FlutterRingtonePlayer _ringtonePlayer = FlutterRingtonePlayer();
 
   static bool _isAlarmPlaying = false;
   static int? _currentAlarmId;
@@ -63,7 +61,6 @@ class NotificationService {
       print('Notifications initialized: $notificationInitialized');
 
       await _createNotificationChannel();
-
       return permissionGranted && alarmInitialized;
     } catch (e) {
       print('Error initializing NotificationService: $e');
@@ -175,6 +172,7 @@ class NotificationService {
     _onAlarmTriggered = callback;
   }
 
+  // Fixed: Removed static access error
   static void _handleMarkAsTaken(String? payload) {
     if (payload != null) {
       print('Marking medication as taken: $payload');
@@ -191,6 +189,7 @@ class NotificationService {
     }
   }
 
+  // Fixed: Removed static access error
   static void _handleSnooze(String? payload) {
     if (payload != null) {
       print('Snoozing medication: $payload');
@@ -200,7 +199,7 @@ class NotificationService {
         final medicationId = int.tryParse(parts[0]);
         final reminderIndex = int.tryParse(parts[1]);
         if (medicationId != null && reminderIndex != null) {
-          final notificationId = _generateNotificationId(medicationId, reminderIndex);
+          final notificationId = generateNotificationId(medicationId, reminderIndex);
           snoozeNotification(
               notificationId,
               'Medication Reminder (Snoozed)',
@@ -212,6 +211,7 @@ class NotificationService {
     }
   }
 
+  // Fixed: Using instance method instead of static access
   static Future<void> playAlarmSound() async {
     debugPrint('playAlarmSound called');
     if (_isAlarmPlaying) {
@@ -223,7 +223,7 @@ class NotificationService {
     _isAlarmPlaying = true;
 
     try {
-      FlutterRingtonePlayer.playAlarm(asAlarm: true);
+      await _ringtonePlayer.playAlarm(asAlarm: true);
       print('Alarm playing');
 
       Future.delayed(const Duration(minutes: 2), () {
@@ -343,11 +343,12 @@ class NotificationService {
     }
   }
 
+  // Fixed: Using instance method instead of static access
   static Future<void> _stopAlarm() async {
     if (!_isAlarmPlaying) return;
 
     try {
-      FlutterRingtonePlayer.stop();
+      await _ringtonePlayer.stop();
       _isAlarmPlaying = false;
       print('Alarm stopped successfully');
     } catch (e) {
@@ -382,7 +383,7 @@ class NotificationService {
         continue;
       }
 
-      final notificationId = _generateNotificationId(medication.id!, i);
+      final notificationId = generateNotificationId(medication.id!, i);
       final alarmId = _generateAlarmId(medication.id!, i);
 
       print('Scheduling notification $notificationId and alarm $alarmId for ${hour}:${minute}');
@@ -534,7 +535,7 @@ class NotificationService {
     }
 
     for (int i = 0; i < medication.reminderTimes.length; i++) {
-      final notificationId = _generateNotificationId(medicationId, i);
+      final notificationId = generateNotificationId(medicationId, i);
       final alarmId = _generateAlarmId(medicationId, i);
 
       await _notifications.cancel(notificationId);
@@ -551,7 +552,7 @@ class NotificationService {
     _stopAlarm();
   }
 
-  static int _generateNotificationId(int medicationId, int reminderIndex) {
+  static int generateNotificationId(int medicationId, int reminderIndex) {
     return medicationId * 100 + reminderIndex;
   }
 
@@ -617,7 +618,7 @@ class NotificationService {
   static Future<void> snoozeMedication(int medicationId, int reminderIndex) async {
     try {
       await _stopAlarm();
-      final notificationId = _generateNotificationId(medicationId, reminderIndex);
+      final notificationId = generateNotificationId(medicationId, reminderIndex);
       await snoozeNotification(
         notificationId,
         'Medication Reminder (Snoozed)',

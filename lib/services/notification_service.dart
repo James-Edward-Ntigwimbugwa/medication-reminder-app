@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'dart:math';
 import 'package:doziyangu/utils/alarm_sounds.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
@@ -16,7 +17,7 @@ import '../models/medication.dart';
 @pragma('vm:entry-point')
 void alarmCallback() {
   print('Alarm callback triggered!');
-  NotificationService.playAlarmSound();
+  NotificationService.handleAlarmTrigger();
 }
 
 class NotificationService {
@@ -30,6 +31,13 @@ class NotificationService {
   static final AudioPlayer _audioPlayer = AudioPlayer();
   static bool _isAlarmPlaying = false;
   static int? _currentAlarmId;
+  static Function(String?)? _onAlarmTriggered;
+  static BuildContext? _overlayContext;
+
+  // Getter for the alarm trigger callback
+  static Function(String?)? getAlarmTriggerCallback() {
+    return _onAlarmTriggered;
+  }
 
   // Initialize notifications and alarm manager
   static Future<bool> initialize() async {
@@ -155,8 +163,8 @@ class NotificationService {
   static void _onNotificationTapped(NotificationResponse response) {
     print('Notification tapped: ${response.payload}');
 
-    // Stop any playing alarm when notification is tapped
-    _stopAlarm();
+    // Trigger alarm and show overlay dialog
+    _handleAlarmFromNotification(response.payload);
 
     // Handle different actions
     switch (response.actionId) {
@@ -167,9 +175,36 @@ class NotificationService {
         _handleSnooze(response.payload);
         break;
       default:
-      // Handle default tap - stop alarm
+      // Handle default tap - show overlay
         break;
     }
+  }
+
+  // New method to handle alarm trigger from notification
+  static void _handleAlarmFromNotification(String? payload) {
+    // Start playing alarm
+    playAlarmSound();
+
+    // Show overlay dialog if context is available
+    if (_onAlarmTriggered != null) {
+      _onAlarmTriggered!(payload);
+    }
+  }
+
+  // New method to handle alarm trigger from AndroidAlarmManager
+  static void handleAlarmTrigger() {
+    print('Alarm triggered from AndroidAlarmManager!');
+    playAlarmSound();
+
+    // Trigger overlay if callback is set
+    if (_onAlarmTriggered != null) {
+      _onAlarmTriggered!(null); // No payload from alarm manager
+    }
+  }
+
+  // Set alarm trigger callback
+  static void setAlarmTriggerCallback(Function(String?)? callback) {
+    _onAlarmTriggered = callback;
   }
 
   static void _handleMarkAsTaken(String? payload) {
@@ -210,9 +245,9 @@ class NotificationService {
     }
   }
 
-  // Play alarm sound continuously
+  // Play alarm sound continuously (ONLY when alarm actually triggers)
   static Future<void> playAlarmSound() async {
-    debugPrint('playAlarmSound called'); // Add this line
+    debugPrint('playAlarmSound called');
     if (_isAlarmPlaying) {
       print('Alarm already playing, skipping...');
       return;
@@ -229,18 +264,16 @@ class NotificationService {
 
       // Stop any previous audio first
       await _audioPlayer.stop();
-      print('Audio player stopped'); // Add this line
+      print('Audio player stopped');
 
       // Set audio player mode for alarm
       await _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.setVolume(1.0); // Maximum volume
-      print('Audio player mode and volume set'); // Add this line
+      print('Audio player mode and volume set');
 
       // Play the alarm sound in loop
       await _audioPlayer.play(AssetSource(selectedAlarm));
-      print('Alarm playing: $selectedAlarm');
-
       print('Alarm playing: $selectedAlarm');
 
       // Stop alarm after 2 minutes if not stopped manually
@@ -265,7 +298,7 @@ class NotificationService {
     String? payload,
   }) async {
     try {
-      // Android notification without sound (handled by AudioPlayer)
+      // Android notification without sound (handled by AudioPlayer when triggered)
       AndroidNotificationDetails androidDetails =
       AndroidNotificationDetails(
         'medication_reminders_high',
@@ -274,13 +307,12 @@ class NotificationService {
         importance: Importance.max,
         priority: Priority.high,
 
-        // No sound - handled by our custom alarm
+        // No sound - handled by our custom alarm ONLY when triggered
         playSound: false,
 
         // Vibration settings
         enableVibration: true,
         vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
-        // After vibration, play alarm sound
 
         // Visual settings
         enableLights: true,
@@ -308,15 +340,15 @@ class NotificationService {
           AndroidNotificationAction(
             'mark_taken',
             'Mark as Taken',
-            icon: const DrawableResourceAndroidBitmap('ic_check'), // Corrected: Use icon parameter
+            icon: const DrawableResourceAndroidBitmap('ic_check'),
             showsUserInterface: true,
             allowGeneratedReplies: false,
             contextual: true,
           ),
           AndroidNotificationAction(
-            'snooze', // Keep this short for readability
+            'snooze',
             'Snooze 10 min',
-            icon: const DrawableResourceAndroidBitmap('ic_snooze'),  // Corrected: Use icon parameter
+            icon: const DrawableResourceAndroidBitmap('ic_snooze'),
             showsUserInterface: false,
             allowGeneratedReplies: false,
             contextual: true,
@@ -377,8 +409,7 @@ class NotificationService {
 
       print('Notification scheduled successfully');
 
-      // Play alarm sound after scheduling notification
-      playAlarmSound();
+      // DO NOT play alarm sound here - only when notification actually triggers!
     } catch (e) {
       print('Error scheduling notification: $e');
     }
@@ -536,6 +567,16 @@ class NotificationService {
     );
   }
 
+  // Cancel a specific notification
+  static Future<void> cancelSpecificNotification(int notificationId) async {
+    try {
+      await _notifications.cancel(notificationId);
+      print('Notification $notificationId cancelled successfully');
+    } catch (e) {
+      print('Error cancelling notification $notificationId: $e');
+    }
+  }
+
   // Show immediate test notification with alarm
   static Future<void> showTestNotification() async {
     AndroidNotificationDetails androidDetails =
@@ -569,12 +610,10 @@ class NotificationService {
       notificationDetails,
     );
 
-    // Play test alarm
+    // Play test alarm immediately for testing
     playAlarmSound();
   }
 
-  // Cancel all notifications and alarms for a specific medication
-  // Cancel all notifications and alarms for a specific medication
   // Cancel all notifications and alarms for a specific medication
   static Future<void> cancelMedicationReminders(int medicationId) async {
     final medications = await MedicationDB.instance.readAllMedications();
@@ -611,7 +650,6 @@ class NotificationService {
     return medicationId * 100 + reminderIndex;
   }
 
-  // Generate unique alarm ID
   // Generate unique alarm ID
   static int _generateAlarmId(int medicationId, int reminderIndex) {
     return medicationId * 200 + reminderIndex; // Different range from notifications
@@ -651,4 +689,54 @@ class NotificationService {
 
   // Check if alarm is currently playing
   static bool get isAlarmPlaying => _isAlarmPlaying;
+
+  // Public method to handle medication taken from overlay
+  static Future<void> markMedicationAsTaken(int medicationId, int reminderIndex) async {
+    try {
+      // Stop the alarm
+      await _stopAlarm();
+
+      // Cancel the specific alarm
+      final alarmId = _generateAlarmId(medicationId, reminderIndex);
+      await AndroidAlarmManager.cancel(alarmId);
+
+      // Update the medication status in database
+      final medications = await MedicationDB.instance.readAllMedications();
+      final medicationIndex = medications.indexWhere((m) => m.id == medicationId);
+
+      if (medicationIndex != -1) {
+        final medication = medications[medicationIndex];
+        final updatedStatus = List<bool>.from(medication.takenStatus);
+
+        if (reminderIndex < updatedStatus.length) {
+          updatedStatus[reminderIndex] = true;
+
+          final updatedMedication = medication.copyWith(takenStatus: updatedStatus);
+          await MedicationDB.instance.updateMedication(updatedMedication);
+        }
+      }
+    } catch (e) {
+      print('Error marking medication as taken: $e');
+    }
+  }
+
+  // Public method to handle snooze from overlay
+  static Future<void> snoozeMedication(int medicationId, int reminderIndex) async {
+    try {
+      // Stop the current alarm
+      await _stopAlarm();
+
+      // Schedule snooze
+      final notificationId = _generateNotificationId(medicationId, reminderIndex);
+      await snoozeNotification(
+        notificationId,
+        'Medication Reminder (Snoozed)',
+        'Time to take your medication',
+        medicationId,
+        reminderIndex,
+      );
+    } catch (e) {
+      print('Error snoozing medication: $e');
+    }
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/medication.dart';
 import '../database/medication_db.dart';
 import '../services/notification_service.dart';
+import '../widgets/glass_alarm_overlay_dialog.dart';
 
 class MedicationScreen extends StatefulWidget {
   const MedicationScreen({super.key});
@@ -15,17 +16,53 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
   bool _notificationsEnabled = true;
   bool _isInitializing = false;
 
+  String? _currentPayload; // To keep track of current alarm payload (e.g., "medId:reminderIndex")
+  bool _isAlarmDialogVisible = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeNotifications();
+
+    // Set the alarm trigger callback to show overlay dialog when alarm triggers
+    NotificationService.setAlarmTriggerCallback(_onAlarmTriggered);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (NotificationService.getAlarmTriggerCallback() == _onAlarmTriggered) {
+      NotificationService.setAlarmTriggerCallback(null);
+    }
     super.dispose();
+  }
+
+  void _onAlarmTriggered(String? payload) {
+    if (!_isAlarmDialogVisible && mounted) {
+      setState(() {
+        _currentPayload = payload;
+        _isAlarmDialogVisible = true;
+      });
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlarmOverlayDialog(
+            payload: _currentPayload,
+            onDismiss: () {
+              if (mounted) {
+                setState(() {
+                  _isAlarmDialogVisible = false;
+                  _currentPayload = null;
+                });
+              }
+            },
+          );
+        },
+      );
+    }
   }
 
   @override
@@ -174,18 +211,14 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
     }
   }
 
-  // Getter and setter for isAlarmPlaying
+  // Getter for whether alarm is playing
   bool get _isAlarmPlaying => NotificationService.isAlarmPlaying;
-  set _isAlarmPlaying(bool value) {
-    // This setter might not be directly used for setting, but good for symmetry
-  }
 
   Future<void> _toggleTakenStatus(int medIndex, int reminderIndex) async {
     if (medIndex >= _medications.length) return;
 
     final med = _medications[medIndex];
 
-    // Make sure lists are aligned
     if (reminderIndex >= med.takenStatus.length) return;
 
     final updatedStatus = List<bool>.from(med.takenStatus);
@@ -220,8 +253,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
             content: Text(
                 updatedStatus[reminderIndex]
                     ? 'Marked as taken!'
-                    : 'Marked as not taken'
-            ),
+                    : 'Marked as not taken'),
             duration: const Duration(seconds: 2),
             backgroundColor: updatedStatus[reminderIndex] ? Colors.green : Colors.orange,
           ),
@@ -251,8 +283,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
             content: Text(
                 enabled
                     ? 'Notifications enabled for this medication'
-                    : 'Notifications disabled for this medication'
-            ),
+                    : 'Notifications disabled for this medication'),
             duration: const Duration(seconds: 2),
             backgroundColor: enabled ? Colors.green : Colors.orange,
           ),
@@ -569,7 +600,6 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
           );
         },
       ),
-      // Floating action button to test notifications
       floatingActionButton: _notificationsEnabled
           ? FloatingActionButton.extended(
         onPressed: () async {

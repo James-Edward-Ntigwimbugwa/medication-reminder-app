@@ -1,7 +1,7 @@
 // glass_alarm_overlay_dialog.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../services/notification_service.dart';
+import '../services/alarm_service.dart';
 import '../database/medication_db.dart';
 import '../models/medication.dart';
 
@@ -84,10 +84,6 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
         _medicationId = int.tryParse(parts[0]) ?? 0;
         _reminderIndex = int.tryParse(parts[1]) ?? 0;
 
-        // Cancel scheduled notification
-        final notificationId = NotificationService.generateNotificationId(_medicationId, _reminderIndex);
-        await NotificationService.cancelSpecificNotification(notificationId);
-
         try {
           final medications = await MedicationDB.instance.readAllMedications();
           _medication = medications.firstWhere(
@@ -133,7 +129,7 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
   Future<void> _handleTakeMedication() async {
     try {
-      await NotificationService.markMedicationAsTaken(_medicationId, _reminderIndex);
+      await AlarmService.markMedicationAsTaken(_medicationId, _reminderIndex);
 
       // Update local state
       if (_medication != null) {
@@ -172,7 +168,7 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
   Future<void> _handleSnooze() async {
     try {
-      await NotificationService.snoozeMedication(_medicationId, _reminderIndex);
+      await AlarmService.snoozeMedication(_medicationId, _reminderIndex);
       _dismissDialog();
 
       if (mounted) {
@@ -199,11 +195,7 @@ class _AlarmOverlayDialogState extends State<AlarmOverlayDialog>
 
   Future<void> _handleTurnOff() async {
     try {
-      await NotificationService.stopCurrentAlarm();
-      if (_medicationId > 0) {
-        final notificationId = NotificationService.generateNotificationId(_medicationId, _reminderIndex);
-        await NotificationService.cancelSpecificNotification(notificationId);
-      }
+      await AlarmService.stopCurrentAlarm();
       _dismissDialog();
 
       if (mounted) {

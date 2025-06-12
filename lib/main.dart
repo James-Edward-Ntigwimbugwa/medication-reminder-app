@@ -1,28 +1,29 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 import 'screens/add_medication_screen.dart';
 import 'screens/medication_screen.dart';
-import 'package:doziyangu/screens/health_info_hub_screen.dart';
+import 'screens/health_info_hub_screen.dart';
 import 'screens/communication_screen.dart';
 import 'screens/language_settings_screen.dart';
-import 'services/notification_service.dart' as notification_svc;
+import 'services/alarm_service.dart';
+import 'package:timezone/data/latest.dart' as tz;
 import 'database/medication_db.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize notification service and request permissions
-  final permissionsGranted =
-      await notification_svc.NotificationService.initialize();
+  // Initialize alarm service and request permissions
+  final permissionsGranted = await AlarmService.initialize();
+  tz.initializeTimeZones();
 
   if (!permissionsGranted) {
     developer.log(
-      'Some permissions were not granted. Notifications may not work properly.',
+      'Some permissions were not granted. Alarms may not work properly.',
     );
   }
 
-  // Reschedule all medication notifications on app start
-  await MedicationDB.instance.rescheduleAllNotifications();
+  // Reschedule all medication alarms on app start
+  await MedicationDB.instance.rescheduleAllAlarms();
 
   runApp(DoziYanguApp(permissionsGranted: permissionsGranted));
 }
@@ -91,10 +92,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Reschedule notifications when app comes back to foreground
+    // Reschedule alarms when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
-      MedicationDB.instance.rescheduleAllNotifications();
-      // _checkPermissionStatus();
+      MedicationDB.instance.rescheduleAllAlarms();
     }
   }
 
@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.notification_important, color: Colors.orange),
+              Icon(Icons.alarm, color: Colors.orange),
               SizedBox(width: 8),
               Text('Permissions Required'),
             ],
@@ -116,40 +116,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'DoziYangu needs the following permissions to remind you about your medications:',
+                'DoziYangu needs the following permissions for medication alarms:',
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.notifications, size: 20, color: Colors.teal),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Notifications - To alert you when it\'s time to take medication',
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.vibration, size: 20, color: Colors.teal),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Phone access - To use ringtone and vibration for alerts',
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8),
-              Row(
-                children: [
                   Icon(Icons.alarm, size: 20, color: Colors.teal),
                   SizedBox(width: 8),
                   Expanded(
-                    child: Text('Exact alarms - For precise medication timing'),
+                    child: Text(
+                      'Exact alarms - For precise medication timing',
+                    ),
                   ),
                 ],
               ),
@@ -188,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _requestPermissions() async {
-    final granted = await notification_svc.NotificationService.initialize();
+    final granted = await AlarmService.initialize();
     if (!mounted) return;
     setState(() {
       _showPermissionBanner = !granted;
@@ -199,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            '✅ All permissions granted! Medication reminders are now active.',
+            '✅ All permissions granted! Medication alarms are now active.',
           ),
           backgroundColor: Colors.green,
         ),
@@ -241,18 +219,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _testNotification() async {
-    await notification_svc.NotificationService.showTestNotification();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          '🔔 Test notification sent! Check how it sounds and vibrates.',
-        ),
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -260,12 +226,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
         actions: [
-          if (_selectedIndex == 0) // Show test button only on medication screen
-            IconButton(
-              icon: const Icon(Icons.notifications_active),
-              onPressed: _testNotification,
-              tooltip: 'Test Notification',
-            ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: _goToSettings,
@@ -286,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
-                      'Some permissions are missing. Medication reminders may not work properly.',
+                      'Exact alarm permission missing. Medication alarms may not work.',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
@@ -313,18 +273,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ],
       ),
       floatingActionButton:
-          _selectedIndex == 0
-              ? FloatingActionButton.extended(
-                onPressed: _goToAddMedication,
-                icon: const Icon(Icons.add),
-                label: const Text("Add Medication"),
-                backgroundColor: Colors.teal,
-                elevation: 5,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              )
-              : null,
+      _selectedIndex == 0
+          ? FloatingActionButton.extended(
+        onPressed: _goToAddMedication,
+        icon: const Icon(Icons.add),
+        label: const Text("Add Medication"),
+        backgroundColor: Colors.teal,
+        elevation: 5,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      )
+          : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.teal,

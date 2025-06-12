@@ -2,7 +2,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/medication.dart';
-import '../services/notification_service.dart';
+import '../services/alarm_service.dart';
 
 class MedicationDB {
   static final MedicationDB instance = MedicationDB._init();
@@ -95,11 +95,11 @@ class MedicationDB {
     return await updateMedication(updated);
   }
 
-  Future<void> rescheduleAllNotifications() async {
+  Future<void> rescheduleAllAlarms() async {
     final medications = await readAllMedications();
     for (final medication in medications) {
       if (medication.notificationsEnabled) {
-        await NotificationService.scheduleMedicationReminders(medication);
+        await AlarmService.scheduleMedicationAlarms(medication);
       }
     }
   }

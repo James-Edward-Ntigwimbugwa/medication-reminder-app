@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.doziyangu">
-    
+
     <!-- Notification permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -8,17 +8,23 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+
     <!-- Exact alarm permission for Android 12+ -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    
+
+    <!-- Battery and screen permissions -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
+
     <!-- Full screen intent permission for critical alerts -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    
+
     <!-- Audio permissions for notification sounds -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    
+
     <!-- Internet permission (if needed for other features) -->
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -26,7 +32,7 @@
         android:label="DoziYangu"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -36,39 +42,48 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"
             android:showOnLockScreen="true"
-            android:turnScreenOn="true">
-            
+            android:turnScreenOn="true"
+            android:showWhenLocked="true">
+
             <!-- Standard launch intent -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            
+
             <!-- Handle notification taps -->
             <intent-filter>
                 <action android:name="FLUTTER_NOTIFICATION_CLICK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        
+
         <!-- Receiver for boot completed to reschedule notifications -->
-        <receiver 
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-            android:enabled="true"
-            android:exported="true">
+        <receiver
+            android:name="dev.fluttercommunity.plus.androidalarmmanager.AlarmBroadcastReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name="dev.fluttercommunity.plus.androidalarmmanager.RebootBroadcastReceiver"
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
-                <action android:name="android.intent.action.PACKAGE_REPLACED"/>
-                <data android:scheme="package" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
-        
+
         <!-- Receiver for scheduled notifications -->
-        <receiver 
+        <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <service
+            android:name="dev.fluttercommunity.plus.androidalarmmanager.AlarmService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false"/>
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -76,14 +91,14 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-    
+
     <!-- Queries for notification sounds -->
     <queries>
         <intent>
             <action android:name="android.intent.action.GET_CONTENT" />
             <data android:mimeType="audio/*" />
         </intent>
-         <intent>
+        <intent>
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="mailto" />
         </intent>

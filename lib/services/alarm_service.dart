@@ -15,6 +15,27 @@ Map<int, Map<String, dynamic>> _alarmMedicationData = {};
 void alarmCallback(int alarmId) {
   print('🔔 Alarm callback triggered with ID: $alarmId');
   AlarmService.handleAlarmTrigger(alarmId);
+
+  // Reschedule for the next day
+  final medicationData = _alarmMedicationData[alarmId];
+  if (medicationData != null) {
+    final timeString = medicationData['reminderTime'] as String;
+    final nextAlarmTime = AlarmService._getNextAlarmTimeForTomorrow(timeString);
+    AndroidAlarmManager.oneShotAt(
+      nextAlarmTime,
+      alarmId,
+      alarmCallback,
+      exact: true,
+      wakeup: true,
+      allowWhileIdle: true,
+    ).then((success) {
+      if (success) {
+        print('✅ Alarm rescheduled for next day at $nextAlarmTime');
+      } else {
+        print('❌ Failed to reschedule alarm');
+      }
+    });
+  }
 }
 
 class AlarmService {
@@ -42,6 +63,15 @@ class AlarmService {
       print('Error initializing AlarmService: $e');
       return false;
     }
+  }
+
+  static DateTime _getNextAlarmTimeForTomorrow(String timeString) {
+    final now = DateTime.now();
+    final timeParts = timeString.split(':');
+    final hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    var todayAlarmTime = DateTime(now.year, now.month, now.day, hour, minute);
+    return todayAlarmTime.add(const Duration(days: 1));
   }
 
   static Future<bool> _requestAlarmPermissions() async {
@@ -84,8 +114,10 @@ class AlarmService {
       'alarm_channel_id',
       'Alarm Notifications',
       importance: Importance.max,
-      priority: Priority.high,
+      priority: Priority.max,
       fullScreenIntent: true,
+      ongoing: true,
+      autoCancel: false,
     );
     const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
     await _notificationsPlugin.show(
@@ -96,8 +128,31 @@ class AlarmService {
       payload: payload,
     );
 
-    // Play alarm sound
+    // Play alarm sound and set 1-minute timeout
     await playAlarmSound();
+    Future.delayed(const Duration(minutes: 1), () async {
+      if (_isAlarmPlaying) {
+        await _stopAlarm();
+        if (medicationData != null) {
+          final missedTitle = 'Missed Medication';
+          final missedBody = 'You missed your ${medicationData['medicationName']} at ${medicationData['reminderTime']}';
+          const AndroidNotificationDetails missedDetails = AndroidNotificationDetails(
+            'missed_medication_channel_id',
+            'Missed Medication Notifications',
+            importance: Importance.high,
+            priority: Priority.high,
+          );
+          const NotificationDetails missedNotificationDetails = NotificationDetails(android: missedDetails);
+          await _notificationsPlugin.show(
+            alarmId + 10000,
+            missedTitle,
+            missedBody,
+            missedNotificationDetails,
+          );
+          print('📢 Sent missed medication notification');
+        }
+      }
+    });
 
     if (_onAlarmTriggered != null) {
       print('🔔 Triggering callback with payload: $payload');
@@ -129,13 +184,6 @@ class AlarmService {
         looping: true,
       );
       print('🔊 Alarm playing');
-
-      Future.delayed(const Duration(minutes: 5), () {
-        if (_isAlarmPlaying) {
-          print('🔊 Auto-stopping alarm after 5 minutes');
-          _stopAlarm();
-        }
-      });
     } catch (e) {
       print('❌ Error playing alarm: $e');
       _isAlarmPlaying = false;
@@ -182,51 +230,43 @@ class AlarmService {
       }
 
       final alarmId = _generateAlarmId(medication.id!, i);
+      final nextAlarmTime = _getNextAlarmTime(timeString);
 
       _alarmMedicationData[alarmId] = {
         'medicationId': medication.id!,
         'reminderIndex': i,
         'medicationName': medication.name,
         'dose': dose,
+        'reminderTime': timeString,
       };
 
-      await _scheduleRepeatingAlarm(alarmId, hour, minute);
-    }
-  }
-
-  static Future<void> _scheduleRepeatingAlarm(int alarmId, int hour, int minute) async {
-    try {
-      final now = DateTime.now();
-      var alarmTime = DateTime(now.year, now.month, now.day, hour, minute);
-
-      if (alarmTime.isBefore(now)) {
-        alarmTime = alarmTime.add(const Duration(days: 1));
-        print('⏰ Time has passed today, scheduling for tomorrow');
-      }
-
-      print('🔔 Current time: ${now.toString()}');
-      print('🔔 Scheduling alarm $alarmId for: ${alarmTime.toString()}');
-      print('🔔 Time until alarm: ${alarmTime.difference(now)}');
-
-      final success = await AndroidAlarmManager.periodic(
-        const Duration(days: 1),
+      final success = await AndroidAlarmManager.oneShotAt(
+        nextAlarmTime,
         alarmId,
         alarmCallback,
-        startAt: alarmTime,
         exact: true,
         wakeup: true,
         allowWhileIdle: true,
-        rescheduleOnReboot: true,
       );
 
       if (success) {
-        print('✅ Alarm scheduled successfully at ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}');
+        print('✅ Alarm scheduled at ${nextAlarmTime.toString()}');
       } else {
         print('❌ Failed to schedule alarm');
       }
-    } catch (e) {
-      print('❌ Error scheduling alarm: $e');
     }
+  }
+
+  static DateTime _getNextAlarmTime(String timeString) {
+    final now = DateTime.now();
+    final timeParts = timeString.split(':');
+    final hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    var alarmTime = DateTime(now.year, now.month, now.day, hour, minute);
+    if (alarmTime.isBefore(now)) {
+      alarmTime = alarmTime.add(const Duration(days: 1));
+    }
+    return alarmTime;
   }
 
   static Future<void> testAlarmIn30Seconds() async {
@@ -241,6 +281,7 @@ class AlarmService {
       'reminderIndex': 0,
       'medicationName': 'Test Medication',
       'dose': '1 test dose',
+      'reminderTime': '${now.hour}:${now.minute}',
     };
 
     final success = await AndroidAlarmManager.oneShot(
@@ -267,6 +308,7 @@ class AlarmService {
       'reminderIndex': 0,
       'medicationName': 'Test Medication 2min',
       'dose': '1 test dose',
+      'reminderTime': '${now.hour}:${now.minute}',
     };
 
     final success = await AndroidAlarmManager.oneShot(

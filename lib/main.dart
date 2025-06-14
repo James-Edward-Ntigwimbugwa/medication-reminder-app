@@ -1,4 +1,4 @@
-// main.dart
+import 'package:doziyangu/widgets/glass_alarm_overlay_dialog.dart';
 import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 import 'screens/add_medication_screen.dart';
@@ -9,20 +9,34 @@ import 'screens/language_settings_screen.dart';
 import 'services/alarm_service.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'database/medication_db.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize alarm service and request permissions
-  final permissionsGranted = await AlarmService.initialize();
+  bool permissionsGranted = await AlarmService.initialize();
   tz.initializeTimeZones();
 
+  // Initialize flutter_local_notifications
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) async {
+      final payload = response.payload;
+      if (payload != null && navigatorKey.currentState != null) {
+        navigatorKey.currentState!.pushNamed('/alarm', arguments: payload);
+      }
+    },
+  );
+
   if (!permissionsGranted) {
-    developer.log(
-      'Some permissions were not granted. Alarms may not work properly.',
-    );
+    developer.log('Some permissions were not granted. Alarms may not work properly.');
   }
 
-  // Reschedule all medication alarms on app start
   await MedicationDB.instance.rescheduleAllAlarms();
 
   runApp(DoziYanguApp(permissionsGranted: permissionsGranted));
@@ -38,7 +52,11 @@ class DoziYanguApp extends StatelessWidget {
     return MaterialApp(
       title: 'DoziYangu',
       theme: ThemeData(primarySwatch: Colors.teal),
+      navigatorKey: navigatorKey,
       home: HomeScreen(permissionsGranted: permissionsGranted),
+      routes: {
+        '/alarm': (context) => AlarmOverlayScreen(payload: ModalRoute.of(context)!.settings.arguments as String?),
+      },
       debugShowCheckedModeBanner: false,
     );
   }
@@ -74,12 +92,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _showPermissionBanner = !widget.permissionsGranted;
+    _checkInitialNotification();
 
-    // Show permission dialog if not granted
     if (!widget.permissionsGranted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showPermissionDialog();
       });
+    }
+  }
+
+  Future<void> _checkInitialNotification() async {
+    final notificationAppLaunchDetails = await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+    if (notificationAppLaunchDetails?.didNotificationLaunchApp == true) {
+      final payload = notificationAppLaunchDetails?.notificationResponse?.payload;
+      if (payload != null) {
+        await Future.delayed(Duration.zero);
+        navigatorKey.currentState!.pushNamed('/alarm', arguments: payload);
+      }
     }
   }
 
@@ -92,7 +121,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Reschedule alarms when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
       MedicationDB.instance.rescheduleAllAlarms();
     }
@@ -125,9 +153,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Icon(Icons.alarm, size: 20, color: Colors.teal),
                   SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      'Exact alarms - For precise medication timing',
-                    ),
+                    child: Text('Exact alarms - For precise medication timing'),
                   ),
                 ],
               ),
@@ -176,9 +202,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '✅ All permissions granted! Medication alarms are now active.',
-          ),
+          content: Text('✅ All permissions granted! Medication alarms are now active.'),
           backgroundColor: Colors.green,
         ),
       );
@@ -186,9 +210,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-            '⚠️ Some permissions were denied. Please enable them in Settings.',
-          ),
+          content: const Text('⚠️ Some permissions were denied. Please enable them in Settings.'),
           backgroundColor: Colors.orange,
           action: SnackBarAction(
             label: 'Settings',
@@ -219,7 +241,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,7 +255,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       body: Column(
         children: [
-          // Permission banner
           if (_showPermissionBanner)
             Container(
               width: double.infinity,
@@ -268,12 +288,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          // Main content
           Expanded(child: _screens[_selectedIndex]),
         ],
       ),
-      floatingActionButton:
-      _selectedIndex == 0
+      floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton.extended(
         onPressed: _goToAddMedication,
         icon: const Icon(Icons.add),
@@ -293,14 +311,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Medications'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info_outline),
-            label: 'Health Info',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'Chat',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.info_outline), label: 'Health Info'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
         ],
       ),
     );

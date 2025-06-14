@@ -1,4 +1,3 @@
-// alarm_service.dart - FIXED VERSION
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -8,8 +7,8 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import '../database/medication_db.dart';
 import '../models/medication.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-// Global variable to store medication data for alarm callback
 Map<int, Map<String, dynamic>> _alarmMedicationData = {};
 
 @pragma('vm:entry-point')
@@ -24,6 +23,7 @@ class AlarmService {
   AlarmService._internal();
 
   static final FlutterRingtonePlayer _ringtonePlayer = FlutterRingtonePlayer();
+  static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
   static bool _isAlarmPlaying = false;
   static Function(String?)? _onAlarmTriggered;
@@ -46,14 +46,12 @@ class AlarmService {
 
   static Future<bool> _requestAlarmPermissions() async {
     try {
-      // Request notification permission first
       if (await Permission.notification.isDenied) {
         await Permission.notification.request();
       }
       final notificationStatus = await Permission.notification.status;
       print('Notification permission: ${notificationStatus.isGranted}');
 
-      // Request exact alarm permission (critical for Android 12+)
       if (await Permission.scheduleExactAlarm.isDenied) {
         await Permission.scheduleExactAlarm.request();
       }
@@ -67,25 +65,41 @@ class AlarmService {
     }
   }
 
-  static void handleAlarmTrigger(int alarmId) {
+  static Future<void> handleAlarmTrigger(int alarmId) async {
     print('🔔 Alarm triggered from AndroidAlarmManager with ID: $alarmId');
 
-    // Get medication data
     final medicationData = _alarmMedicationData[alarmId];
+    String title = 'Medication Reminder';
+    String body = 'Time to take your medication';
+    String? payload;
     if (medicationData != null) {
-      final medicationName = medicationData['medicationName'];
-      final dose = medicationData['dose'];
-      print('💊 Time to take: $medicationName ($dose)');
+      title = 'Time to take ${medicationData['medicationName']}';
+      body = 'Dose: ${medicationData['dose']}';
+      payload = '${medicationData['medicationId']}:${medicationData['reminderIndex']}';
+      print('💊 $title ($body)');
     }
 
-    // Play alarm sound immediately
-    playAlarmSound();
+    // Show full-screen notification
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'alarm_channel_id',
+      'Alarm Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      fullScreenIntent: true,
+    );
+    const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
+    await _notificationsPlugin.show(
+      alarmId,
+      title,
+      body,
+      notificationDetails,
+      payload: payload,
+    );
 
-    // Trigger callback if set
+    // Play alarm sound
+    await playAlarmSound();
+
     if (_onAlarmTriggered != null) {
-      final payload = medicationData != null
-          ? '${medicationData['medicationId']}:${medicationData['reminderIndex']}'
-          : null;
       print('🔔 Triggering callback with payload: $payload');
       _onAlarmTriggered!(payload);
     } else {
@@ -109,15 +123,13 @@ class AlarmService {
     _isAlarmPlaying = true;
 
     try {
-      // Play alarm with maximum volume
       await _ringtonePlayer.playAlarm(
         asAlarm: true,
-        volume: 1.0, // Maximum volume
-        looping: true, // Keep playing until stopped
+        volume: 1.0,
+        looping: true,
       );
       print('🔊 Alarm playing');
 
-      // Auto-stop after 5 minutes to prevent infinite playing
       Future.delayed(const Duration(minutes: 5), () {
         if (_isAlarmPlaying) {
           print('🔊 Auto-stopping alarm after 5 minutes');
@@ -142,7 +154,6 @@ class AlarmService {
     }
   }
 
-  // Main method to schedule medication alarms
   static Future<void> scheduleMedicationAlarms(Medication medication) async {
     if (medication.id == null) {
       print('❌ Cannot schedule alarms: medication ID is null');
@@ -172,7 +183,6 @@ class AlarmService {
 
       final alarmId = _generateAlarmId(medication.id!, i);
 
-      // Store medication data for alarm callback
       _alarmMedicationData[alarmId] = {
         'medicationId': medication.id!,
         'reminderIndex': i,
@@ -180,40 +190,29 @@ class AlarmService {
         'dose': dose,
       };
 
-      // Schedule the repeating alarm
       await _scheduleRepeatingAlarm(alarmId, hour, minute);
     }
   }
 
-  static Future<void> _scheduleRepeatingAlarm(
-      int alarmId,
-      int hour,
-      int minute,
-      ) async {
+  static Future<void> _scheduleRepeatingAlarm(int alarmId, int hour, int minute) async {
     try {
-      // FIXED: Use proper local timezone handling
       final now = DateTime.now();
-
-      // Create the target time for today in local timezone
       var alarmTime = DateTime(now.year, now.month, now.day, hour, minute);
 
-      // If the time has passed today, schedule for tomorrow
       if (alarmTime.isBefore(now)) {
         alarmTime = alarmTime.add(const Duration(days: 1));
         print('⏰ Time has passed today, scheduling for tomorrow');
       }
 
-      // CRITICAL FIX: Don't convert to TZDateTime - use DateTime directly
       print('🔔 Current time: ${now.toString()}');
       print('🔔 Scheduling alarm $alarmId for: ${alarmTime.toString()}');
       print('🔔 Time until alarm: ${alarmTime.difference(now)}');
 
-      // Use DateTime directly instead of TZDateTime
       final success = await AndroidAlarmManager.periodic(
         const Duration(days: 1),
         alarmId,
         alarmCallback,
-        startAt: alarmTime, // Use DateTime directly
+        startAt: alarmTime,
         exact: true,
         wakeup: true,
         allowWhileIdle: true,
@@ -230,7 +229,6 @@ class AlarmService {
     }
   }
 
-  // Add test method for immediate testing
   static Future<void> testAlarmIn30Seconds() async {
     final testAlarmId = 99999;
     final now = DateTime.now();
@@ -238,7 +236,6 @@ class AlarmService {
 
     print('🧪 Testing alarm in 30 seconds at: ${testTime.toString()}');
 
-    // Store test data
     _alarmMedicationData[testAlarmId] = {
       'medicationId': 999,
       'reminderIndex': 0,
@@ -258,7 +255,6 @@ class AlarmService {
     print(success ? '✅ Test alarm scheduled for 30 seconds' : '❌ Test alarm failed');
   }
 
-  // Add test method for 2 minutes (easier to catch)
   static Future<void> testAlarmIn2Minutes() async {
     final testAlarmId = 99998;
     final now = DateTime.now();
@@ -266,7 +262,6 @@ class AlarmService {
 
     print('🧪 Testing alarm in 2 minutes at: ${testTime.toString()}');
 
-    // Store test data
     _alarmMedicationData[testAlarmId] = {
       'medicationId': 998,
       'reminderIndex': 0,
@@ -289,9 +284,9 @@ class AlarmService {
   static Future<void> cancelMedicationAlarms(int medicationId) async {
     final medications = await MedicationDB.instance.readAllMedications();
     final medication = medications.firstWhere(
-            (m) => m.id == medicationId,
-        orElse: () => Medication(
-            name: '', unit: '', frequency: '', reminderTimes: [], doses: [], takenStatus: []));
+          (m) => m.id == medicationId,
+      orElse: () => Medication(name: '', unit: '', frequency: '', reminderTimes: [], doses: [], takenStatus: []),
+    );
 
     if (medication.name.isEmpty) {
       print('❌ Medication with ID $medicationId not found, cannot cancel alarms.');
@@ -300,8 +295,6 @@ class AlarmService {
 
     for (int i = 0; i < medication.reminderTimes.length; i++) {
       final alarmId = _generateAlarmId(medicationId, i);
-
-      // Remove stored data
       _alarmMedicationData.remove(alarmId);
 
       try {
@@ -365,7 +358,6 @@ class AlarmService {
     try {
       await _stopAlarm();
 
-      // Schedule a one-time alarm for 10 minutes from now
       final snoozeAlarmId = _generateAlarmId(medicationId, reminderIndex) + 1000;
       final snoozeTime = DateTime.now().add(const Duration(minutes: 10));
 

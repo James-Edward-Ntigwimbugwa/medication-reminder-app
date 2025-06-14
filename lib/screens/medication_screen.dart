@@ -1,7 +1,9 @@
+// medication_screen.dart
 import 'package:flutter/material.dart';
 import '../models/medication.dart';
 import '../database/medication_db.dart';
-import '../services/notification_service.dart';
+import '../services/alarm_service.dart';
+import '../widgets/glass_alarm_overlay_dialog.dart';
 
 class MedicationScreen extends StatefulWidget {
   const MedicationScreen({super.key});
@@ -12,74 +14,84 @@ class MedicationScreen extends StatefulWidget {
 
 class _MedicationScreenState extends State<MedicationScreen> with WidgetsBindingObserver {
   List<Medication> _medications = [];
-  bool _notificationsEnabled = true;
+  bool _alarmPermissionsGranted = true;
   bool _isInitializing = false;
+  String? _currentPayload;
+  bool _isAlarmDialogVisible = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initializeNotifications();
+    AlarmService.setAlarmTriggerCallback(_onAlarmTriggered);
+    _initializeAlarms();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    AlarmService.setAlarmTriggerCallback(null);
     super.dispose();
+  }
+
+  void _onAlarmTriggered(String? payload) {
+    if (!_isAlarmDialogVisible && mounted) {
+      setState(() {
+        _currentPayload = payload;
+        _isAlarmDialogVisible = true;
+      });
+
+      // showDialog(
+      //   context: context,
+      //   barrierDismissible: false,
+      //   builder: (context) {
+      //     return AlarmOverlayDialog(
+      //       payload: _currentPayload,
+      //       onDismiss: () {
+      //         if (mounted) {
+      //           setState(() {
+      //             _isAlarmDialogVisible = false;
+      //             _currentPayload = null;
+      //           });
+      //         }
+      //       },
+      //     );
+      //   },
+      // );
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-
-    // When app comes to foreground, refresh medication status
     if (state == AppLifecycleState.resumed) {
       _fetchMedications();
-      _checkNotificationPermissions();
     }
-
-    // When app goes to background, ensure notifications are scheduled
     if (state == AppLifecycleState.paused) {
-      _rescheduleAllNotifications();
+      _rescheduleAllAlarms();
     }
   }
 
-  Future<void> _initializeNotifications() async {
+  Future<void> _initializeAlarms() async {
     if (_isInitializing) return;
-
-    setState(() {
-      _isInitializing = true;
-    });
+    setState(() => _isInitializing = true);
 
     try {
-      print('Initializing notification service...');
+      final initialized = await AlarmService.initialize();
+      if (!initialized) _showInitializationError();
 
-      // Initialize the notification service
-      final initialized = await NotificationService.initialize();
-      print('Notification service initialized: $initialized');
+      // Check alarm permissions
+      final permissions = await AlarmService.checkAlarmPermissions();
+      setState(() {
+        _alarmPermissionsGranted = permissions['exactAlarm'] ?? false;
+      });
 
-      if (!initialized) {
-        _showInitializationError();
-      }
-
-      // Check permissions
-      await _checkNotificationPermissions();
-
-      // Fetch medications
       await _fetchMedications();
-
-      // Reschedule all notifications to ensure they're active
-      await _rescheduleAllNotifications();
-
-      print('Medication screen initialization complete');
-
+      await _rescheduleAllAlarms();
     } catch (e) {
-      print('Error initializing notifications: $e');
+      print('Error initializing alarms: $e');
       _showInitializationError();
     } finally {
-      setState(() {
-        _isInitializing = false;
-      });
+      setState(() => _isInitializing = false);
     }
   }
 
@@ -88,7 +100,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Failed to initialize notifications. Some features may not work properly.',
+            'Failed to initialize alarms. Medication reminders may not work.',
             style: TextStyle(color: Colors.white),
           ),
           backgroundColor: Colors.red,
@@ -98,37 +110,12 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
     }
   }
 
-  Future<void> _checkNotificationPermissions() async {
-    try {
-      final permissions = await NotificationService.checkAllPermissions();
-      final notificationEnabled = await NotificationService.areNotificationsEnabled();
-
-      print('Permission status: $permissions');
-      print('Notifications enabled: $notificationEnabled');
-
-      setState(() {
-        _notificationsEnabled = notificationEnabled && (permissions['notification'] ?? false);
-      });
-
-      // Show warning if critical permissions are missing
-      if (!_notificationsEnabled) {
-        _showPermissionWarning();
-      }
-
-    } catch (e) {
-      print('Error checking permissions: $e');
-      setState(() {
-        _notificationsEnabled = false;
-      });
-    }
-  }
-
   void _showPermissionWarning() {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Notification permissions required for medication reminders!',
+            'Exact alarm permission required for medication reminders!',
             style: TextStyle(color: Colors.white),
           ),
           backgroundColor: Colors.orange,
@@ -136,7 +123,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
           action: SnackBarAction(
             label: 'Settings',
             textColor: Colors.white,
-            onPressed: _showNotificationSettings,
+            onPressed: _showAlarmSettings,
           ),
         ),
       );
@@ -146,11 +133,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
   Future<void> _fetchMedications() async {
     try {
       final meds = await MedicationDB.instance.readAllMedications();
-      print('Fetched ${meds.length} medications');
-
-      setState(() {
-        _medications = meds;
-      });
+      setState(() => _medications = meds);
     } catch (e) {
       print('Error fetching medications: $e');
       if (mounted) {
@@ -164,28 +147,19 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
     }
   }
 
-  Future<void> _rescheduleAllNotifications() async {
+  Future<void> _rescheduleAllAlarms() async {
     try {
-      print('Rescheduling all notifications...');
-      await MedicationDB.instance.rescheduleAllNotifications();
-      print('All notifications rescheduled successfully');
+      await MedicationDB.instance.rescheduleAllAlarms();
     } catch (e) {
-      print('Error rescheduling notifications: $e');
+      print('Error rescheduling alarms: $e');
     }
   }
 
-  // Getter and setter for isAlarmPlaying
-  bool get _isAlarmPlaying => NotificationService.isAlarmPlaying;
-  set _isAlarmPlaying(bool value) {
-    // This setter might not be directly used for setting, but good for symmetry
-  }
+  bool get _isAlarmPlaying => AlarmService.isAlarmPlaying;
 
   Future<void> _toggleTakenStatus(int medIndex, int reminderIndex) async {
     if (medIndex >= _medications.length) return;
-
     final med = _medications[medIndex];
-
-    // Make sure lists are aligned
     if (reminderIndex >= med.takenStatus.length) return;
 
     final updatedStatus = List<bool>.from(med.takenStatus);
@@ -203,25 +177,16 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
 
     try {
       await MedicationDB.instance.updateMedication(updatedMed);
+      setState(() => _medications[medIndex] = updatedMed);
 
-      setState(() {
-        _medications[medIndex] = updatedMed;
-      });
-
-      // Stop any playing alarm when medication is marked as taken
       if (updatedStatus[reminderIndex]) {
-        await NotificationService.stopCurrentAlarm();
+        await AlarmService.stopCurrentAlarm();
       }
 
-      // Show confirmation message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                updatedStatus[reminderIndex]
-                    ? 'Marked as taken!'
-                    : 'Marked as not taken'
-            ),
+            content: Text(updatedStatus[reminderIndex] ? 'Marked as taken!' : 'Marked as not taken'),
             duration: const Duration(seconds: 2),
             backgroundColor: updatedStatus[reminderIndex] ? Colors.green : Colors.orange,
           ),
@@ -240,30 +205,25 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
     }
   }
 
-  Future<void> _toggleNotifications(int medicationId, bool enabled) async {
+  Future<void> _toggleAlarms(int medicationId, bool enabled) async {
     try {
       await MedicationDB.instance.toggleNotifications(medicationId, enabled);
-      await _fetchMedications(); // Refresh the list
-
+      await _fetchMedications();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                enabled
-                    ? 'Notifications enabled for this medication'
-                    : 'Notifications disabled for this medication'
-            ),
+            content: Text(enabled ? 'Alarms enabled' : 'Alarms disabled'),
             duration: const Duration(seconds: 2),
             backgroundColor: enabled ? Colors.green : Colors.orange,
           ),
         );
       }
     } catch (e) {
-      print('Error toggling notifications: $e');
+      print('Error toggling alarms: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error toggling notifications: $e'),
+            content: Text('Error toggling alarms: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -271,26 +231,21 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
     }
   }
 
-  void _showNotificationSettings() {
+  void _showAlarmSettings() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Notification Settings'),
+        title: const Text('Alarm Settings'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('System notifications: ${_notificationsEnabled ? 'Enabled' : 'Disabled'}'),
+            Text('Alarms: ${_alarmPermissionsGranted ? 'Enabled' : 'Disabled'}'),
             const SizedBox(height: 16),
-            if (!_notificationsEnabled) ...[
+            if (!_alarmPermissionsGranted) ...[
               const Text(
-                'Please enable notifications in your device settings to receive medication reminders.',
+                'Please enable exact alarms in your device settings for medication reminders',
                 style: TextStyle(color: Colors.orange),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Required permissions:\n• Notifications\n• Exact Alarms\n• System Alert Window',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
             const SizedBox(height: 16),
@@ -300,23 +255,9 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
                   child: ElevatedButton(
                     onPressed: () async {
                       Navigator.of(context).pop();
-                      await _initializeNotifications();
+                      await _initializeAlarms();
                     },
                     child: const Text('Refresh Status'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      Navigator.of(context).pop();
-                      await NotificationService.showTestNotification();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Test Alarm'),
                   ),
                 ),
               ],
@@ -351,19 +292,18 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
           ] else ...[
             IconButton(
               icon: Icon(
-                Icons.notifications_outlined,
-                color: _notificationsEnabled ? Colors.green : Colors.red,
+                Icons.alarm,
+                color: _alarmPermissionsGranted ? Colors.green : Colors.red,
               ),
-              onPressed: _showNotificationSettings,
+              onPressed: _showAlarmSettings,
             ),
           ],
-          // Stop alarm button (only show if alarm is playing)
           if (_isAlarmPlaying)
             IconButton(
               icon: const Icon(Icons.volume_off, color: Colors.red),
               onPressed: () async {
-                await NotificationService.stopCurrentAlarm();
-                setState(() {}); // Refresh to hide the button
+                await AlarmService.stopCurrentAlarm();
+                setState(() {});
               },
             ),
         ],
@@ -388,7 +328,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
               const SizedBox(height: 16),
               const CircularProgressIndicator(),
               const SizedBox(height: 8),
-              const Text('Initializing notifications...', style: TextStyle(color: Colors.grey)),
+              const Text('Initializing alarms...', style: TextStyle(color: Colors.grey)),
             ],
           ],
         ),
@@ -398,7 +338,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
         itemBuilder: (context, index) {
           final med = _medications[index];
           final reminderCount = med.reminderTimes.length;
-          final isNotificationEnabled = med.notificationsEnabled ?? true;
+          final isAlarmEnabled = med.notificationsEnabled;
 
           return Dismissible(
             key: Key(med.id.toString()),
@@ -415,7 +355,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
                 builder: (_) => AlertDialog(
                   title: const Text('Delete Medication?'),
                   content: Text(
-                    'Are you sure you want to delete ${med.name}?\n\nThis will also cancel all reminders for this medication.',
+                    'Are you sure you want to delete ${med.name}?\n\nThis will also cancel all alarms for this medication.',
                   ),
                   actions: [
                     TextButton(
@@ -433,10 +373,7 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
             onDismissed: (_) async {
               try {
                 await MedicationDB.instance.deleteMedication(med.id!);
-                setState(() {
-                  _medications.removeAt(index);
-                });
-
+                setState(() => _medications.removeAt(index));
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -489,21 +426,21 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
                     Text(med.frequency),
                     const Spacer(),
                     GestureDetector(
-                      onTap: () => _toggleNotifications(med.id!, !isNotificationEnabled),
+                      onTap: () => _toggleAlarms(med.id!, !isAlarmEnabled),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            isNotificationEnabled ? Icons.notifications_active : Icons.notifications_off,
+                            isAlarmEnabled ? Icons.alarm : Icons.alarm_off,
                             size: 16,
-                            color: isNotificationEnabled && _notificationsEnabled ? Colors.green : Colors.grey,
+                            color: isAlarmEnabled && _alarmPermissionsGranted ? Colors.green : Colors.grey,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isNotificationEnabled ? 'On' : 'Off',
+                            isAlarmEnabled ? 'On' : 'Off',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isNotificationEnabled && _notificationsEnabled ? Colors.green : Colors.grey,
+                              color: isAlarmEnabled && _alarmPermissionsGranted ? Colors.green : Colors.grey,
                             ),
                           ),
                         ],
@@ -569,25 +506,6 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
           );
         },
       ),
-      // Floating action button to test notifications
-      floatingActionButton: _notificationsEnabled
-          ? FloatingActionButton.extended(
-        onPressed: () async {
-          await NotificationService.showTestNotification();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Test notification sent! Alarm will play for 2 minutes.'),
-                backgroundColor: Colors.blue,
-              ),
-            );
-          }
-        },
-        icon: const Icon(Icons.notifications_active),
-        label: const Text('Test'),
-        backgroundColor: Colors.blue,
-      )
-          : null,
     );
   }
 }

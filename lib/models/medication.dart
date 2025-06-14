@@ -1,12 +1,13 @@
+// medication.dart
 class Medication {
-  final int? id; // For SQLite auto-increment ID
+  final int? id;
   final String name;
   final String unit;
-  final String frequency; // e.g., "Once daily", "Twice daily"
-  final List<String> reminderTimes; // e.g., ["08:00", "20:00"]
-  final List<String> doses; // e.g., ["1 pill", "1 pill"]
-  final List<bool> takenStatus; // For each reminder time
-  late bool notificationsEnabled = true; // Default to true
+  final String frequency;
+  final List<String> reminderTimes;
+  final List<String> doses;
+  final List<bool> takenStatus;
+  bool notificationsEnabled;
 
   Medication({
     this.id,
@@ -16,26 +17,27 @@ class Medication {
     required this.reminderTimes,
     required this.doses,
     required this.takenStatus,
+    this.notificationsEnabled = true,
   });
 
-  // Convert to Map<String, dynamic> for SQLite
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'name': name,
       'unit': unit,
       'frequency': frequency,
-      'reminderTimes': reminderTimes.join(','), // Store as CSV
+      'reminderTimes': reminderTimes.join(','),
       'doses': doses.join(','),
       'takenStatus': takenStatus.map((e) => e ? '1' : '0').join(','),
+      'notificationsEnabled': notificationsEnabled ? '1' : '0',
     };
   }
 
-  // Convert back from SQLite Map with safe parsing
   factory Medication.fromMap(Map<String, dynamic> map) {
     String reminderTimesStr = map['reminderTimes']?.toString() ?? '';
     String dosesStr = map['doses']?.toString() ?? '';
     String takenStatusStr = map['takenStatus']?.toString() ?? '';
+    String notificationsEnabledStr = map['notificationsEnabled']?.toString() ?? '1';
 
     List<String> parseCsvString(String str) {
       if (str.isEmpty) return <String>[];
@@ -55,10 +57,10 @@ class Medication {
       reminderTimes: parseCsvString(reminderTimesStr),
       doses: parseCsvString(dosesStr),
       takenStatus: parseTakenStatus(takenStatusStr),
+      notificationsEnabled: notificationsEnabledStr == '1',
     );
   }
 
-  // Optional: copyWith method for easier updates
   Medication copyWith({
     int? id,
     String? name,
@@ -67,6 +69,7 @@ class Medication {
     List<String>? reminderTimes,
     List<String>? doses,
     List<bool>? takenStatus,
+    bool? notificationsEnabled,
   }) {
     return Medication(
       id: id ?? this.id,
@@ -76,6 +79,7 @@ class Medication {
       reminderTimes: reminderTimes ?? this.reminderTimes,
       doses: doses ?? this.doses,
       takenStatus: takenStatus ?? this.takenStatus,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     );
   }
 }

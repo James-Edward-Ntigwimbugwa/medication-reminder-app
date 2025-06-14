@@ -1,11 +1,11 @@
+// medication_db.dart
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/medication.dart';
-import '../services/notification_service.dart';
+import '../services/alarm_service.dart';
 
 class MedicationDB {
   static final MedicationDB instance = MedicationDB._init();
-
   static Database? _database;
 
   MedicationDB._init();
@@ -16,11 +16,15 @@ class MedicationDB {
     return _database!;
   }
 
-  Future<Database> _initDB(String fileName) async {
+  Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, fileName);
+    final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _createDB,
+    );
   }
 
   Future _createDB(Database db, int version) async {
@@ -33,83 +37,69 @@ class MedicationDB {
         reminderTimes TEXT NOT NULL,
         doses TEXT NOT NULL,
         takenStatus TEXT NOT NULL,
-        notificationsEnabled INTEGER DEFAULT 1
+        notificationsEnabled TEXT NOT NULL
       )
     ''');
   }
 
-  Future<int> createMedication(Medication med) async {
+  Future<Medication> createMedication(Medication medication) async {
     final db = await instance.database;
-    final id = await db.insert('medications', med.toMap());
+    final id = await db.insert('medications', medication.toMap());
+    return medication.copyWith(id: id);
+  }
 
-    // Schedule notifications for the new medication
-    final medicationWithId = med.copyWith(id: id);
-    await NotificationService.scheduleMedicationReminders(medicationWithId);
+  Future<Medication> readMedication(int id) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'medications',
+      columns: MedicationFields.values,
+      where: '${MedicationFields.id} = ?',
+      whereArgs: [id],
+    );
 
-    return id;
+    if (maps.isNotEmpty) {
+      return Medication.fromMap(maps.first);
+    } else {
+      throw Exception('ID $id not found');
+    }
   }
 
   Future<List<Medication>> readAllMedications() async {
     final db = await instance.database;
     final result = await db.query('medications');
-
-    return result.map((map) => Medication.fromMap(map)).toList();
+    return result.map((json) => Medication.fromMap(json)).toList();
   }
 
-  Future<int> updateMedication(Medication med) async {
+  Future<int> updateMedication(Medication medication) async {
     final db = await instance.database;
-    final result = await db.update(
+    return db.update(
       'medications',
-      med.toMap(),
-      where: 'id = ?',
-      whereArgs: [med.id],
+      medication.toMap(),
+      where: '${MedicationFields.id} = ?',
+      whereArgs: [medication.id],
     );
-
-    // Reschedule notifications for the updated medication
-    if (med.id != null) {
-      await NotificationService.scheduleMedicationReminders(med);
-    }
-
-    return result;
   }
 
   Future<int> deleteMedication(int id) async {
     final db = await instance.database;
-
-    // Cancel notifications before deleting
-    await NotificationService.cancelMedicationReminders(id);
-
-    return await db.delete('medications', where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<void> toggleNotifications(int medicationId, bool enabled) async {
-    final db = await instance.database;
-    await db.update(
+    return await db.delete(
       'medications',
-      {'notificationsEnabled': enabled ? 1 : 0},
-      where: 'id = ?',
-      whereArgs: [medicationId],
+      where: '${MedicationFields.id} = ?',
+      whereArgs: [id],
     );
-
-    if (enabled) {
-      // Re-enable notifications
-      final result = await db.query('medications', where: 'id = ?', whereArgs: [medicationId]);
-      if (result.isNotEmpty) {
-        final medication = Medication.fromMap(result.first);
-        await NotificationService.scheduleMedicationReminders(medication);
-      }
-    } else {
-      // Disable notifications
-      await NotificationService.cancelMedicationReminders(medicationId);
-    }
   }
 
-  // Reschedule all medication notifications (useful after app restart)
-  Future<void> rescheduleAllNotifications() async {
+  Future<int> toggleNotifications(int medicationId, bool enabled) async {
+    final medication = await readMedication(medicationId);
+    final updated = medication.copyWith(notificationsEnabled: enabled);
+    return await updateMedication(updated);
+  }
+
+  Future<void> rescheduleAllAlarms() async {
     final medications = await readAllMedications();
     for (final medication in medications) {
-      if (medication.id != null) {
-        await NotificationService.scheduleMedicationReminders(medication);
+      if (medication.notificationsEnabled) {
+        await AlarmService.scheduleMedicationAlarms(medication);
       }
     }
   }
@@ -118,4 +108,26 @@ class MedicationDB {
     final db = await instance.database;
     db.close();
   }
+}
+
+class MedicationFields {
+  static final List<String> values = [
+    id,
+    name,
+    unit,
+    frequency,
+    reminderTimes,
+    doses,
+    takenStatus,
+    notificationsEnabled,
+  ];
+
+  static const String id = 'id';
+  static const String name = 'name';
+  static const String unit = 'unit';
+  static const String frequency = 'frequency';
+  static const String reminderTimes = 'reminderTimes';
+  static const String doses = 'doses';
+  static const String takenStatus = 'takenStatus';
+  static const String notificationsEnabled = 'notificationsEnabled';
 }

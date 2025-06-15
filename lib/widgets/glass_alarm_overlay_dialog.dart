@@ -7,13 +7,14 @@ import '../models/medication.dart';
 class AlarmOverlayScreen extends StatefulWidget {
   final String? payload;
 
-  const AlarmOverlayScreen({Key? key, this.payload}) : super(key: key);
+  const AlarmOverlayScreen({super.key, this.payload});
 
   @override
   State<AlarmOverlayScreen> createState() => _AlarmOverlayScreenState();
 }
 
-class _AlarmOverlayScreenState extends State<AlarmOverlayScreen> with SingleTickerProviderStateMixin {
+class _AlarmOverlayScreenState extends State<AlarmOverlayScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -68,26 +69,29 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen> with SingleTick
         try {
           final medications = await MedicationDB.instance.readAllMedications();
           _medication = medications.firstWhere(
-                (m) => m.id == _medicationId,
-            orElse: () => Medication(
-              name: 'Unknown Medication',
-              unit: '',
-              frequency: '',
-              reminderTimes: [],
-              doses: [],
-              takenStatus: [],
-            ),
+            (m) => m.id == _medicationId,
+            orElse:
+                () => Medication(
+                  name: 'Unknown Medication',
+                  unit: '',
+                  frequency: '',
+                  reminderTimes: [],
+                  doses: [],
+                  takenStatus: [],
+                ),
           );
 
           if (_medication != null) {
             setState(() {
               _medicationName = _medication!.name;
-              _dose = _reminderIndex < _medication!.doses.length
-                  ? _medication!.doses[_reminderIndex]
-                  : '1 dose';
-              _time = _reminderIndex < _medication!.reminderTimes.length
-                  ? _medication!.reminderTimes[_reminderIndex]
-                  : 'Unknown time';
+              _dose =
+                  _reminderIndex < _medication!.doses.length
+                      ? _medication!.doses[_reminderIndex]
+                      : '1 dose';
+              _time =
+                  _reminderIndex < _medication!.reminderTimes.length
+                      ? _medication!.reminderTimes[_reminderIndex]
+                      : 'Unknown time';
             });
           }
         } catch (e) {
@@ -240,7 +244,10 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen> with SingleTick
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1.5,
+                              ),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(24),
@@ -257,9 +264,18 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen> with SingleTick
                                           decoration: BoxDecoration(
                                             color: Colors.red.withOpacity(0.2),
                                             shape: BoxShape.circle,
-                                            border: Border.all(color: Colors.red.withOpacity(0.5), width: 2),
+                                            border: Border.all(
+                                              color: Colors.red.withOpacity(
+                                                0.5,
+                                              ),
+                                              width: 2,
+                                            ),
                                           ),
-                                          child: const Icon(Icons.medication, size: 48, color: Colors.red),
+                                          child: const Icon(
+                                            Icons.medication,
+                                            size: 48,
+                                            color: Colors.red,
+                                          ),
                                         ),
                                       );
                                     },
@@ -272,7 +288,11 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen> with SingleTick
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
                                       shadows: [
-                                        Shadow(offset: Offset(1, 1), blurRadius: 3, color: Colors.black54),
+                                        Shadow(
+                                          offset: Offset(1, 1),
+                                          blurRadius: 3,
+                                          color: Colors.black54,
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -282,14 +302,21 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen> with SingleTick
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.2),
+                                      ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
-                                            const Icon(Icons.medical_services, color: Colors.white70, size: 20),
+                                            const Icon(
+                                              Icons.medical_services,
+                                              color: Colors.white70,
+                                              size: 20,
+                                            ),
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
@@ -306,22 +333,36 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen> with SingleTick
                                         const SizedBox(height: 8),
                                         Row(
                                           children: [
-                                            const Icon(Icons.access_time, color: Colors.white70, size: 20),
+                                            const Icon(
+                                              Icons.access_time,
+                                              color: Colors.white70,
+                                              size: 20,
+                                            ),
                                             const SizedBox(width: 8),
                                             Text(
                                               'Time: $_time',
-                                              style: const TextStyle(fontSize: 16, color: Colors.white70),
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.white70,
+                                              ),
                                             ),
                                           ],
                                         ),
                                         const SizedBox(height: 8),
                                         Row(
                                           children: [
-                                            const Icon(Icons.medication_liquid, color: Colors.white70, size: 20),
+                                            const Icon(
+                                              Icons.medication_liquid,
+                                              color: Colors.white70,
+                                              size: 20,
+                                            ),
                                             const SizedBox(width: 8),
                                             Text(
                                               'Dose: $_dose',
-                                              style: const TextStyle(fontSize: 16, color: Colors.white70),
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.white70,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -402,7 +443,11 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen> with SingleTick
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
             ],
           ),

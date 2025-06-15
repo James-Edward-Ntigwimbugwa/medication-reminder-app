@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../database/medication_db.dart';
@@ -50,9 +49,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkInitialNotification() async {
-    final notificationAppLaunchDetails = await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+    final notificationAppLaunchDetails =
+        await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
     if (notificationAppLaunchDetails?.didNotificationLaunchApp == true) {
-      final payload = notificationAppLaunchDetails?.notificationResponse?.payload;
+      final payload =
+          notificationAppLaunchDetails?.notificationResponse?.payload;
       if (payload != null) {
         await Future.delayed(Duration.zero);
         navigatorKey.currentState!.pushNamed('/alarm', arguments: payload);
@@ -150,7 +151,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ All permissions granted! Medication alarms are now active.'),
+          content: Text(
+            '✅ All permissions granted! Medication alarms are now active.',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -158,7 +161,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('⚠️ Some permissions were denied. Please enable them in Settings.'),
+          content: const Text(
+            '⚠️ Some permissions were denied. Please enable them in Settings.',
+          ),
           backgroundColor: Colors.orange,
           action: SnackBarAction(
             label: 'Settings',
@@ -239,18 +244,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Expanded(child: _screens[_selectedIndex]),
         ],
       ),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton.extended(
-        onPressed: _goToAddMedication,
-        icon: const Icon(Icons.add),
-        label: const Text("Add Medication"),
-        backgroundColor: Colors.teal,
-        elevation: 5,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      )
-          : null,
+      floatingActionButton:
+          _selectedIndex == 0
+              ? FloatingActionButton.extended(
+                onPressed: _goToAddMedication,
+                icon: const Icon(Icons.add),
+                label: const Text("Add Medication"),
+                backgroundColor: Colors.teal,
+                elevation: 5,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              )
+              : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.teal,
@@ -259,8 +265,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Medications'),
-          BottomNavigationBarItem(icon: Icon(Icons.info_outline), label: 'Health Info'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.info_outline),
+            label: 'Health Info',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            label: 'Chat',
+          ),
         ],
       ),
     );

@@ -120,10 +120,11 @@ class ClockPainter extends CustomPainter {
   }
 
   void _drawHourMarkersAndNumbers(Canvas canvas, Offset center, double radius) {
-    final hourPaint = Paint()
-      ..color = accentColor.withOpacity(0.8)
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
+    final hourPaint =
+        Paint()
+          ..color = accentColor.withOpacity(0.8)
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round;
 
     final textStyle = TextStyle(
       color: accentColor.withOpacity(0.9),
@@ -185,13 +186,15 @@ class ClockPainter extends CustomPainter {
   }
 
   void _drawMinuteMarkers(Canvas canvas, Offset center, double radius) {
-    final minutePaint = Paint()
-      ..color = accentColor.withOpacity(0.4)
-      ..strokeWidth = 1
-      ..strokeCap = StrokeCap.round;
+    final minutePaint =
+        Paint()
+          ..color = accentColor.withOpacity(0.4)
+          ..strokeWidth = 1
+          ..strokeCap = StrokeCap.round;
 
     for (int i = 0; i < 60; i++) {
-      if (i % 5 != 0) { // Skip hour markers
+      if (i % 5 != 0) {
+        // Skip hour markers
         final angle = (i * 6 - 90) * math.pi / 180;
         final startPoint = Offset(
           center.dx + (radius - 8) * math.cos(angle),
@@ -213,10 +216,11 @@ class ClockPainter extends CustomPainter {
 
     // Hour hand
     final hourAngle = (hour * 30 + minute * 0.5 - 90) * math.pi / 180;
-    final hourPaint = Paint()
-      ..color = accentColor.withOpacity(0.9)
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
+    final hourPaint =
+        Paint()
+          ..color = accentColor.withOpacity(0.9)
+          ..strokeWidth = 6
+          ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(
       center,
@@ -229,10 +233,11 @@ class ClockPainter extends CustomPainter {
 
     // Minute hand
     final minuteAngle = (minute * 6 - 90) * math.pi / 180;
-    final minutePaint = Paint()
-      ..color = accentColor.withOpacity(0.8)
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
+    final minutePaint =
+        Paint()
+          ..color = accentColor.withOpacity(0.8)
+          ..strokeWidth = 4
+          ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(
       center,
@@ -245,10 +250,11 @@ class ClockPainter extends CustomPainter {
 
     // Second hand
     final secondAngle = (second * 6 - 90) * math.pi / 180;
-    final secondPaint = Paint()
-      ..color = Colors.red.withOpacity(0.8)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
+    final secondPaint =
+        Paint()
+          ..color = Colors.red.withOpacity(0.8)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(
       center,
@@ -261,16 +267,18 @@ class ClockPainter extends CustomPainter {
   }
 
   void _drawCenterDot(Canvas canvas, Offset center) {
-    final centerPaint = Paint()
-      ..color = accentColor
-      ..style = PaintingStyle.fill;
+    final centerPaint =
+        Paint()
+          ..color = accentColor
+          ..style = PaintingStyle.fill;
 
     canvas.drawCircle(center, 8, centerPaint);
 
     // Inner white dot for contrast
-    final innerPaint = Paint()
-      ..color = Colors.white.withOpacity(0.8)
-      ..style = PaintingStyle.fill;
+    final innerPaint =
+        Paint()
+          ..color = Colors.white.withOpacity(0.8)
+          ..style = PaintingStyle.fill;
 
     canvas.drawCircle(center, 4, innerPaint);
   }
@@ -307,10 +315,7 @@ class ClockSection extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             "Schedule your medication reminders",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       ),

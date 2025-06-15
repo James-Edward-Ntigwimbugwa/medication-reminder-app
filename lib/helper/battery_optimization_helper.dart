@@ -9,7 +9,9 @@ class BatteryOptimizationHelper {
   /// Check if battery optimization is disabled for the app
   static Future<bool> isBatteryOptimizationDisabled() async {
     try {
-      final bool result = await _channel.invokeMethod('isBatteryOptimizationDisabled');
+      final bool result = await _channel.invokeMethod(
+        'isBatteryOptimizationDisabled',
+      );
       return result;
     } on PlatformException catch (e) {
       print('Error checking battery optimization: ${e.message}');
@@ -20,7 +22,9 @@ class BatteryOptimizationHelper {
   /// Request to disable battery optimization
   static Future<bool> requestDisableBatteryOptimization() async {
     try {
-      final bool result = await _channel.invokeMethod('requestDisableBatteryOptimization');
+      final bool result = await _channel.invokeMethod(
+        'requestDisableBatteryOptimization',
+      );
       return result;
     } on PlatformException catch (e) {
       print('Error requesting battery optimization disable: ${e.message}');
@@ -33,68 +37,69 @@ class BatteryOptimizationHelper {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.battery_alert, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Battery Optimization'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'For reliable medication reminders, please disable battery optimization for this app.',
-              style: TextStyle(fontSize: 16),
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.battery_alert, color: Colors.orange),
+                SizedBox(width: 8),
+                Text('Battery Optimization'),
+              ],
             ),
-            SizedBox(height: 16),
-            Text(
-              'Steps:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            Text('1. Tap "Open Settings" below'),
-            Text('2. Find this app in the list'),
-            Text('3. Select "Don\'t optimize"'),
-            Text('4. Tap "Done"'),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning, color: Colors.orange, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Without this, alarms may be delayed or not work when the screen is off.',
-                      style: TextStyle(fontSize: 14, color: Colors.orange[800]),
-                    ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'For reliable medication reminders, please disable battery optimization for this app.',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 16),
+                Text('Steps:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('1. Tap "Open Settings" below'),
+                Text('2. Find this app in the list'),
+                Text('3. Select "Don\'t optimize"'),
+                Text('4. Tap "Done"'),
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Without this, alarms may be delayed or not work when the screen is off.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.orange[800],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Later'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Later'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await requestDisableBatteryOptimization();
+                },
+                child: Text('Open Settings'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await requestDisableBatteryOptimization();
-            },
-            child: Text('Open Settings'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -159,6 +164,8 @@ class BatteryOptimizationHelper {
 
 // Widget to show permission status
 class PermissionStatusWidget extends StatefulWidget {
+  const PermissionStatusWidget({super.key});
+
   @override
   _PermissionStatusWidgetState createState() => _PermissionStatusWidgetState();
 }
@@ -199,12 +206,16 @@ class _PermissionStatusWidgetState extends State<PermissionStatusWidget> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16),
-            ...(_permissions.entries.map((entry) => _buildPermissionRow(entry.key, entry.value))),
+            ...(_permissions.entries.map(
+              (entry) => _buildPermissionRow(entry.key, entry.value),
+            )),
             SizedBox(height: 16),
             if (_permissions.values.any((granted) => !granted))
               ElevatedButton(
                 onPressed: () async {
-                  await BatteryOptimizationHelper.requestAllPermissions(context);
+                  await BatteryOptimizationHelper.requestAllPermissions(
+                    context,
+                  );
                   _checkPermissions();
                 },
                 child: Text('Fix Permissions'),
@@ -226,18 +237,10 @@ class _PermissionStatusWidgetState extends State<PermissionStatusWidget> {
         children: [
           Icon(icon, color: color, size: 20),
           SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              displayName,
-              style: TextStyle(fontSize: 16),
-            ),
-          ),
+          Expanded(child: Text(displayName, style: TextStyle(fontSize: 16))),
           Text(
             granted ? 'Granted' : 'Denied',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
         ],
       ),

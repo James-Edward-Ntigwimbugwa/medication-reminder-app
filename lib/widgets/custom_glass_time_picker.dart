@@ -47,7 +47,10 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
   void _updateTime(TimeOfDay newTime) {
     setState(() {
       selectedTime = newTime;
-      hourController.text = selectedTime.hourOfPeriod.toString().padLeft(2, '0');
+      hourController.text = selectedTime.hourOfPeriod.toString().padLeft(
+        2,
+        '0',
+      );
       minuteController.text = selectedTime.minute.toString().padLeft(2, '0');
     });
     widget.onTimeChanged(newTime);
@@ -59,11 +62,12 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
       int minute = int.parse(minuteController.text);
 
       if (hour >= 1 && hour <= 12 && minute >= 0 && minute <= 59) {
-        int actualHour = selectedTime.period == DayPeriod.pm && hour != 12
-            ? hour + 12
-            : selectedTime.period == DayPeriod.am && hour == 12
-            ? 0
-            : hour;
+        int actualHour =
+            selectedTime.period == DayPeriod.pm && hour != 12
+                ? hour + 12
+                : selectedTime.period == DayPeriod.am && hour == 12
+                ? 0
+                : hour;
 
         if (selectedTime.period == DayPeriod.pm && hour != 12) {
           actualHour = hour + 12;
@@ -77,15 +81,19 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
       }
     } catch (e) {
       // Reset to current values if invalid
-      hourController.text = selectedTime.hourOfPeriod.toString().padLeft(2, '0');
+      hourController.text = selectedTime.hourOfPeriod.toString().padLeft(
+        2,
+        '0',
+      );
       minuteController.text = selectedTime.minute.toString().padLeft(2, '0');
     }
   }
 
   void _togglePeriod() {
-    final newHour = selectedTime.period == DayPeriod.am
-        ? selectedTime.hour + 12
-        : selectedTime.hour - 12;
+    final newHour =
+        selectedTime.period == DayPeriod.am
+            ? selectedTime.hour + 12
+            : selectedTime.hour - 12;
     _updateTime(TimeOfDay(hour: newHour, minute: selectedTime.minute));
   }
 
@@ -148,29 +156,26 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
                       ),
                     ),
                     const SizedBox(height: 16), // Reduced from 20
-
                     // Time Display with Direct Edit
                     _buildTimeDisplay(),
 
                     const SizedBox(height: 24), // Reduced from 30
-
                     // Glass Clock Face
                     _buildClockFace(),
 
                     const SizedBox(height: 24), // Increased from 20
-
                     // Action Buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         _buildActionButton(
                           'Cancel',
-                              () => Navigator.of(context).pop(),
+                          () => Navigator.of(context).pop(),
                           isCancel: true,
                         ),
                         _buildActionButton(
                           'OK',
-                              () => Navigator.of(context).pop(selectedTime),
+                          () => Navigator.of(context).pop(selectedTime),
                         ),
                       ],
                     ),
@@ -195,10 +200,7 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
             Colors.white.withOpacity(0.1),
           ],
         ),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.4),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -223,51 +225,54 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
               height: 40,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: isEditingHour
-                    ? Colors.blue.withOpacity(0.2)
-                    : Colors.transparent,
-                border: isEditingHour
-                    ? Border.all(color: Colors.blue, width: 2)
-                    : null,
+                color:
+                    isEditingHour
+                        ? Colors.blue.withOpacity(0.2)
+                        : Colors.transparent,
+                border:
+                    isEditingHour
+                        ? Border.all(color: Colors.blue, width: 2)
+                        : null,
               ),
               child: Center(
-                child: isEditingHour
-                    ? TextField(
-                  controller: hourController,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(2),
-                  ],
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onSubmitted: (_) {
-                    setState(() {
-                      isEditingHour = false;
-                    });
-                    _updateFromTextField();
-                  },
-                  onTapOutside: (_) {
-                    setState(() {
-                      isEditingHour = false;
-                    });
-                    _updateFromTextField();
-                  },
-                )
-                    : Text(
-                  selectedTime.hourOfPeriod.toString().padLeft(2, '0'),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child:
+                    isEditingHour
+                        ? TextField(
+                          controller: hourController,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(2),
+                          ],
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onSubmitted: (_) {
+                            setState(() {
+                              isEditingHour = false;
+                            });
+                            _updateFromTextField();
+                          },
+                          onTapOutside: (_) {
+                            setState(() {
+                              isEditingHour = false;
+                            });
+                            _updateFromTextField();
+                          },
+                        )
+                        : Text(
+                          selectedTime.hourOfPeriod.toString().padLeft(2, '0'),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
               ),
             ),
           ),
@@ -275,10 +280,7 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
           // Separator
           const Text(
             ':',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
 
           // Minute
@@ -294,51 +296,54 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
               height: 40,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: isEditingMinute
-                    ? Colors.blue.withOpacity(0.2)
-                    : Colors.transparent,
-                border: isEditingMinute
-                    ? Border.all(color: Colors.blue, width: 2)
-                    : null,
+                color:
+                    isEditingMinute
+                        ? Colors.blue.withOpacity(0.2)
+                        : Colors.transparent,
+                border:
+                    isEditingMinute
+                        ? Border.all(color: Colors.blue, width: 2)
+                        : null,
               ),
               child: Center(
-                child: isEditingMinute
-                    ? TextField(
-                  controller: minuteController,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(2),
-                  ],
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onSubmitted: (_) {
-                    setState(() {
-                      isEditingMinute = false;
-                    });
-                    _updateFromTextField();
-                  },
-                  onTapOutside: (_) {
-                    setState(() {
-                      isEditingMinute = false;
-                    });
-                    _updateFromTextField();
-                  },
-                )
-                    : Text(
-                  selectedTime.minute.toString().padLeft(2, '0'),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child:
+                    isEditingMinute
+                        ? TextField(
+                          controller: minuteController,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(2),
+                          ],
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onSubmitted: (_) {
+                            setState(() {
+                              isEditingMinute = false;
+                            });
+                            _updateFromTextField();
+                          },
+                          onTapOutside: (_) {
+                            setState(() {
+                              isEditingMinute = false;
+                            });
+                            _updateFromTextField();
+                          },
+                        )
+                        : Text(
+                          selectedTime.minute.toString().padLeft(2, '0'),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
               ),
             ),
           ),
@@ -390,10 +395,7 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
             Colors.white.withOpacity(0.05),
           ],
         ),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.4),
-          width: 2,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -419,25 +421,28 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
     );
   }
 
-  Widget _buildActionButton(String text, VoidCallback onPressed, {bool isCancel = false}) {
+  Widget _buildActionButton(
+    String text,
+    VoidCallback onPressed, {
+    bool isCancel = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         gradient: LinearGradient(
-          colors: isCancel
-              ? [
-            Colors.grey.withOpacity(0.3),
-            Colors.grey.withOpacity(0.1),
-          ]
-              : [
-            Colors.blue.withOpacity(0.3),
-            Colors.blue.withOpacity(0.1),
-          ],
+          colors:
+              isCancel
+                  ? [Colors.grey.withOpacity(0.3), Colors.grey.withOpacity(0.1)]
+                  : [
+                    Colors.blue.withOpacity(0.3),
+                    Colors.blue.withOpacity(0.1),
+                  ],
         ),
         border: Border.all(
-          color: isCancel
-              ? Colors.grey.withOpacity(0.4)
-              : Colors.blue.withOpacity(0.4),
+          color:
+              isCancel
+                  ? Colors.grey.withOpacity(0.4)
+                  : Colors.blue.withOpacity(0.4),
           width: 1,
         ),
       ),
@@ -453,9 +458,7 @@ class _CustomGlassTimePickerState extends State<CustomGlassTimePicker>
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: isCancel
-                    ? Colors.grey[700]
-                    : Colors.blue[700],
+                color: isCancel ? Colors.grey[700] : Colors.blue[700],
               ),
             ),
           ),
@@ -476,10 +479,11 @@ class TimePickerClockPainter extends CustomPainter {
     final radius = math.min(size.width / 2, size.height / 2) - 10;
 
     // Draw hour markers
-    final hourPaint = Paint()
-      ..color = Colors.black.withOpacity(0.6)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
+    final hourPaint =
+        Paint()
+          ..color = Colors.black.withOpacity(0.6)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round;
 
     for (int i = 1; i <= 12; i++) {
       final angle = (i * 30 - 90) * math.pi / 180;
@@ -495,9 +499,10 @@ class TimePickerClockPainter extends CustomPainter {
     }
 
     // Draw minute markers
-    final minutePaint = Paint()
-      ..color = Colors.black.withOpacity(0.3)
-      ..strokeWidth = 1;
+    final minutePaint =
+        Paint()
+          ..color = Colors.black.withOpacity(0.3)
+          ..strokeWidth = 1;
 
     for (int i = 0; i < 60; i++) {
       if (i % 5 != 0) {
@@ -516,10 +521,11 @@ class TimePickerClockPainter extends CustomPainter {
 
     // Draw minute hand
     final minuteAngle = (time.minute * 6 - 90) * math.pi / 180;
-    final minuteHandPaint = Paint()
-      ..color = Colors.blue
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
+    final minuteHandPaint =
+        Paint()
+          ..color = Colors.blue
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(
       center,

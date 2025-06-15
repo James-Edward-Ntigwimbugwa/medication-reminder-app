@@ -1,7 +1,5 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz2;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
@@ -44,7 +42,8 @@ class AlarmService {
   AlarmService._internal();
 
   static final FlutterRingtonePlayer _ringtonePlayer = FlutterRingtonePlayer();
-  static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
   static bool _isAlarmPlaying = false;
   static Function(String?)? _onAlarmTriggered;
@@ -105,21 +104,25 @@ class AlarmService {
     if (medicationData != null) {
       title = 'Time to take ${medicationData['medicationName']}';
       body = 'Dose: ${medicationData['dose']}';
-      payload = '${medicationData['medicationId']}:${medicationData['reminderIndex']}';
+      payload =
+          '${medicationData['medicationId']}:${medicationData['reminderIndex']}';
       print('💊 $title ($body)');
     }
 
     // Show full-screen notification
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'alarm_channel_id',
-      'Alarm Notifications',
-      importance: Importance.max,
-      priority: Priority.max,
-      fullScreenIntent: true,
-      ongoing: true,
-      autoCancel: false,
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'alarm_channel_id',
+          'Alarm Notifications',
+          importance: Importance.max,
+          priority: Priority.max,
+          fullScreenIntent: true,
+          ongoing: true,
+          autoCancel: false,
+        );
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
     );
-    const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
     await _notificationsPlugin.show(
       alarmId,
       title,
@@ -135,14 +138,17 @@ class AlarmService {
         await _stopAlarm();
         if (medicationData != null) {
           final missedTitle = 'Missed Medication';
-          final missedBody = 'You missed your ${medicationData['medicationName']} at ${medicationData['reminderTime']}';
-          const AndroidNotificationDetails missedDetails = AndroidNotificationDetails(
-            'missed_medication_channel_id',
-            'Missed Medication Notifications',
-            importance: Importance.high,
-            priority: Priority.high,
-          );
-          const NotificationDetails missedNotificationDetails = NotificationDetails(android: missedDetails);
+          final missedBody =
+              'You missed your ${medicationData['medicationName']} at ${medicationData['reminderTime']}';
+          const AndroidNotificationDetails missedDetails =
+              AndroidNotificationDetails(
+                'missed_medication_channel_id',
+                'Missed Medication Notifications',
+                importance: Importance.high,
+                priority: Priority.high,
+              );
+          const NotificationDetails missedNotificationDetails =
+              NotificationDetails(android: missedDetails);
           await _notificationsPlugin.show(
             alarmId + 10000,
             missedTitle,
@@ -164,7 +170,9 @@ class AlarmService {
 
   static void setAlarmTriggerCallback(Function(String?)? callback) {
     _onAlarmTriggered = callback;
-    print('🔔 Alarm trigger callback ${callback != null ? 'registered' : 'cleared'}');
+    print(
+      '🔔 Alarm trigger callback ${callback != null ? 'registered' : 'cleared'}',
+    );
   }
 
   static Future<void> playAlarmSound() async {
@@ -293,7 +301,9 @@ class AlarmService {
       allowWhileIdle: true,
     );
 
-    print(success ? '✅ Test alarm scheduled for 30 seconds' : '❌ Test alarm failed');
+    print(
+      success ? '✅ Test alarm scheduled for 30 seconds' : '❌ Test alarm failed',
+    );
   }
 
   static Future<void> testAlarmIn2Minutes() async {
@@ -320,18 +330,30 @@ class AlarmService {
       allowWhileIdle: true,
     );
 
-    print(success ? '✅ Test alarm scheduled for 2 minutes' : '❌ Test alarm failed');
+    print(
+      success ? '✅ Test alarm scheduled for 2 minutes' : '❌ Test alarm failed',
+    );
   }
 
   static Future<void> cancelMedicationAlarms(int medicationId) async {
     final medications = await MedicationDB.instance.readAllMedications();
     final medication = medications.firstWhere(
-          (m) => m.id == medicationId,
-      orElse: () => Medication(name: '', unit: '', frequency: '', reminderTimes: [], doses: [], takenStatus: []),
+      (m) => m.id == medicationId,
+      orElse:
+          () => Medication(
+            name: '',
+            unit: '',
+            frequency: '',
+            reminderTimes: [],
+            doses: [],
+            takenStatus: [],
+          ),
     );
 
     if (medication.name.isEmpty) {
-      print('❌ Medication with ID $medicationId not found, cannot cancel alarms.');
+      print(
+        '❌ Medication with ID $medicationId not found, cannot cancel alarms.',
+      );
       return;
     }
 
@@ -371,12 +393,17 @@ class AlarmService {
 
   static bool get isAlarmPlaying => _isAlarmPlaying;
 
-  static Future<void> markMedicationAsTaken(int medicationId, int reminderIndex) async {
+  static Future<void> markMedicationAsTaken(
+    int medicationId,
+    int reminderIndex,
+  ) async {
     try {
       await _stopAlarm();
 
       final medications = await MedicationDB.instance.readAllMedications();
-      final medicationIndex = medications.indexWhere((m) => m.id == medicationId);
+      final medicationIndex = medications.indexWhere(
+        (m) => m.id == medicationId,
+      );
 
       if (medicationIndex != -1) {
         final medication = medications[medicationIndex];
@@ -385,7 +412,9 @@ class AlarmService {
         if (reminderIndex < updatedStatus.length) {
           updatedStatus[reminderIndex] = true;
 
-          final updatedMedication = medication.copyWith(takenStatus: updatedStatus);
+          final updatedMedication = medication.copyWith(
+            takenStatus: updatedStatus,
+          );
           await MedicationDB.instance.updateMedication(updatedMedication);
 
           print('✅ Marked ${medication.name} as taken');
@@ -396,11 +425,15 @@ class AlarmService {
     }
   }
 
-  static Future<void> snoozeMedication(int medicationId, int reminderIndex) async {
+  static Future<void> snoozeMedication(
+    int medicationId,
+    int reminderIndex,
+  ) async {
     try {
       await _stopAlarm();
 
-      final snoozeAlarmId = _generateAlarmId(medicationId, reminderIndex) + 1000;
+      final snoozeAlarmId =
+          _generateAlarmId(medicationId, reminderIndex) + 1000;
       final snoozeTime = DateTime.now().add(const Duration(minutes: 10));
 
       print('⏰ Snoozing alarm until: ${snoozeTime.toString()}');

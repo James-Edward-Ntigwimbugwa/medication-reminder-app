@@ -11,11 +11,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:doziyangu/main.dart';
 
-void main() async{
+void main() async {
   final permissionsGranted = await AlarmService.initialize();
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(DoziYanguApp(permissionsGranted: permissionsGranted));
+    await tester.pumpWidget(
+      DoziYanguApp(permissionsGranted: permissionsGranted),
+    );
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

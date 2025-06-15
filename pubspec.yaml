@@ -48,6 +48,7 @@ dependencies:
   android_intent_plus: ^5.3.0
 
 
+  crypto: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -37,7 +37,8 @@ class Medication {
     String reminderTimesStr = map['reminderTimes']?.toString() ?? '';
     String dosesStr = map['doses']?.toString() ?? '';
     String takenStatusStr = map['takenStatus']?.toString() ?? '';
-    String notificationsEnabledStr = map['notificationsEnabled']?.toString() ?? '1';
+    String notificationsEnabledStr =
+        map['notificationsEnabled']?.toString() ?? '1';
 
     List<String> parseCsvString(String str) {
       if (str.isEmpty) return <String>[];

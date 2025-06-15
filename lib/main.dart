@@ -8,7 +8,8 @@ import 'database/medication_db.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,8 +17,11 @@ void main() async {
   tz.initializeTimeZones();
 
   // Initialize flutter_local_notifications
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
 
   // Create notification channels
   final AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
@@ -39,8 +43,11 @@ void main() async {
     enableVibration: true,
   );
 
-  final androidPlugin = flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  final androidPlugin =
+      flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
   await androidPlugin?.createNotificationChannel(alarmChannel);
   await androidPlugin?.createNotificationChannel(missedChannel);
 
@@ -55,7 +62,9 @@ void main() async {
   );
 
   if (!permissionsGranted) {
-    developer.log('Some permissions were not granted. Alarms may not work properly.');
+    developer.log(
+      'Some permissions were not granted. Alarms may not work properly.',
+    );
   }
 
   await MedicationDB.instance.rescheduleAllAlarms();
@@ -76,7 +85,10 @@ class DoziYanguApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       home: HomeScreen(permissionsGranted: permissionsGranted),
       routes: {
-        '/alarm': (context) => AlarmOverlayScreen(payload: ModalRoute.of(context)!.settings.arguments as String?),
+        '/alarm':
+            (context) => AlarmOverlayScreen(
+              payload: ModalRoute.of(context)!.settings.arguments as String?,
+            ),
       },
       debugShowCheckedModeBanner: false,
     );

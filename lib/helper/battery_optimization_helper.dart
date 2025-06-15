@@ -159,6 +159,8 @@ class BatteryOptimizationHelper {
 
 // Widget to show permission status
 class PermissionStatusWidget extends StatefulWidget {
+  const PermissionStatusWidget({super.key});
+
   @override
   _PermissionStatusWidgetState createState() => _PermissionStatusWidgetState();
 }

@@ -1,8 +1,12 @@
-// Updated Chatbot to ensure scroll-to-bottom works after response
-// Added: Settings icon removed and AppBar styled with only one title and subtitle
 import 'package:flutter/material.dart';
+import 'package:doziyangu/l10n/l10n.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/medalpaca_service.dart';
+
+// Interface for HealthInfoScreen state
+abstract class HealthInfoScreenState {
+  void openChatbotModal();
+}
 
 class HealthInfoScreen extends StatefulWidget {
   const HealthInfoScreen({super.key});
@@ -11,7 +15,8 @@ class HealthInfoScreen extends StatefulWidget {
   State<HealthInfoScreen> createState() => _HealthInfoScreenState();
 }
 
-class _HealthInfoScreenState extends State<HealthInfoScreen> {
+class _HealthInfoScreenState extends State<HealthInfoScreen>
+    implements HealthInfoScreenState {
   static const String geminiApiKey = "AIzaSyBj0RhCf6KN1avAd39KXX_HfQwQo4-5TsY";
   final medAlpacaService = MedAlpacaService(geminiApiKey);
 
@@ -22,12 +27,28 @@ class _HealthInfoScreenState extends State<HealthInfoScreen> {
     }
   }
 
+  @override
+  void openChatbotModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return ChatbotWidget(medAlpacaService: medAlpacaService);
+      },
+    );
+  }
+
   Widget _buildHealthCard({
     required String title,
     required String description,
     required String url,
     required BuildContext context,
   }) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       elevation: 4,
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -50,7 +71,7 @@ class _HealthInfoScreenState extends State<HealthInfoScreen> {
               alignment: Alignment.bottomRight,
               child: TextButton(
                 onPressed: () => _launchURL(url),
-                child: const Text("Learn More"),
+                child: Text(l10n.learnMore),
               ),
             ),
           ],
@@ -59,106 +80,47 @@ class _HealthInfoScreenState extends State<HealthInfoScreen> {
     );
   }
 
-  void _openChatbotModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return ChatbotWidget(medAlpacaService: medAlpacaService);
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 120,
-            backgroundColor: Colors.teal,
-            flexibleSpace: FlexibleSpaceBar(
-              centerTitle: true,
-              titlePadding: const EdgeInsets.only(bottom: 8.0),
-              title: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: const [
-                  Text(
-                    "Health Information Hub",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    "Jua Afya Yako",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white70,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverList(
-            delegate: SliverChildListDelegate([
-              const SizedBox(height: 10),
-              _buildHealthCard(
-                title: "Common Health Tips",
-                description:
-                    "Explore daily practices to maintain a healthy lifestyle.",
-                url:
-                    "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
-                context: context,
-              ),
-              _buildHealthCard(
-                title: "Lishe bora\nNutrition",
-                description:
-                    "Jifunze na kuelewa umuhimu wa lishe bora\n Understand the importance of balanced nutrition.",
-                url: "https://www.who.int/health-topics/nutrition",
-                context: context,
-              ),
-              _buildHealthCard(
-                title: "Mental Health",
-                description:
-                    "Learn about mental well-being and stress management.",
-                url: "https://www.who.int/health-topics/mental-health",
-                context: context,
-              ),
-              _buildHealthCard(
-                title: "Maternal & Child Health",
-                description:
-                    "Vital guidance for pregnant mothers and children.",
-                url: "https://www.unicef.org/health",
-                context: context,
-              ),
-              _buildHealthCard(
-                title: "Disease Prevention",
-                description: "Protect yourself from malaria, HIV, TB and more.",
-                url: "https://www.cdc.gov/globalhealth/index.html",
-                context: context,
-              ),
-              const SizedBox(height: 90),
-            ]),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openChatbotModal,
-        label: const Text("Chatbot"),
-        icon: const Icon(Icons.chat_bubble_outline),
-        backgroundColor: Colors.teal,
-      ),
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      children: [
+        const SizedBox(height: 10),
+        _buildHealthCard(
+          title: l10n.commonHealthTips,
+          description: l10n.exploreDailyPractices,
+          url: "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+          context: context,
+        ),
+        _buildHealthCard(
+          title: '${l10n.lisheBora}\n${l10n.nutrition}',
+          description: l10n.understandNutritionImportance,
+          url: "https://www.who.int/health-topics/nutrition",
+          context: context,
+        ),
+        _buildHealthCard(
+          title: l10n.mentalHealth,
+          description: l10n.mentalWellBeing,
+          url: "https://www.who.int/health-topics/mental-health",
+          context: context,
+        ),
+        _buildHealthCard(
+          title: l10n.maternalChildHealth,
+          description: l10n.maternalChildGuidance,
+          url: "https://www.unicef.org/health",
+          context: context,
+        ),
+        _buildHealthCard(
+          title: l10n.diseasePrevention,
+          description: l10n.protectFromDiseases,
+          url: "https://www.cdc.gov/globalhealth/index.html",
+          context: context,
+        ),
+        const SizedBox(height: 90),
+      ],
     );
   }
 }
-
-// ChatbotWidget remains as updated with scroll-to-bottom fix.
 
 class ChatbotWidget extends StatefulWidget {
   final MedAlpacaService medAlpacaService;
@@ -194,7 +156,7 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     } catch (e) {
       setState(() {
-        _messages.add({'sender': 'bot', 'text': 'Error: \${e.toString()}'});
+        _messages.add({'sender': 'bot', 'text': 'Error: ${e.toString()}'});
       });
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     } finally {
@@ -241,6 +203,7 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -251,9 +214,12 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
           child: Column(
             children: [
               const SizedBox(height: 12),
-              const Text(
-                "Chat with Health Assistant",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                l10n.chatWithHealthAssistant,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const Divider(),
               Expanded(
@@ -278,9 +244,9 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
                     Expanded(
                       child: TextField(
                         controller: _controller,
-                        decoration: const InputDecoration(
-                          hintText: "Type your message...",
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          hintText: l10n.typeYourMessage,
+                          border: const OutlineInputBorder(),
                         ),
                         onSubmitted: (_) => _sendMessage(),
                       ),

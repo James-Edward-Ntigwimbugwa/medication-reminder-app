@@ -1,9 +1,7 @@
-// medication_screen.dart
 import 'package:flutter/material.dart';
 import '../models/medication.dart';
 import '../database/medication_db.dart';
 import '../services/alarm_service.dart';
-import '../widgets/glass_alarm_overlay_dialog.dart';
 
 class MedicationScreen extends StatefulWidget {
   const MedicationScreen({super.key});
@@ -12,7 +10,8 @@ class MedicationScreen extends StatefulWidget {
   _MedicationScreenState createState() => _MedicationScreenState();
 }
 
-class _MedicationScreenState extends State<MedicationScreen> with WidgetsBindingObserver {
+class _MedicationScreenState extends State<MedicationScreen>
+    with WidgetsBindingObserver {
   List<Medication> _medications = [];
   bool _alarmPermissionsGranted = true;
   bool _isInitializing = false;
@@ -186,9 +185,14 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(updatedStatus[reminderIndex] ? 'Marked as taken!' : 'Marked as not taken'),
+            content: Text(
+              updatedStatus[reminderIndex]
+                  ? 'Marked as taken!'
+                  : 'Marked as not taken',
+            ),
             duration: const Duration(seconds: 2),
-            backgroundColor: updatedStatus[reminderIndex] ? Colors.green : Colors.orange,
+            backgroundColor:
+                updatedStatus[reminderIndex] ? Colors.green : Colors.orange,
           ),
         );
       }
@@ -234,43 +238,46 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
   void _showAlarmSettings() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Alarm Settings'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Alarms: ${_alarmPermissionsGranted ? 'Enabled' : 'Disabled'}'),
-            const SizedBox(height: 16),
-            if (!_alarmPermissionsGranted) ...[
-              const Text(
-                'Please enable exact alarms in your device settings for medication reminders',
-                style: TextStyle(color: Colors.orange),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Row(
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Alarm Settings'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      Navigator.of(context).pop();
-                      await _initializeAlarms();
-                    },
-                    child: const Text('Refresh Status'),
+                Text(
+                  'Alarms: ${_alarmPermissionsGranted ? 'Enabled' : 'Disabled'}',
+                ),
+                const SizedBox(height: 16),
+                if (!_alarmPermissionsGranted) ...[
+                  const Text(
+                    'Please enable exact alarms in your device settings for medication reminders',
+                    style: TextStyle(color: Colors.orange),
                   ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.of(context).pop();
+                          await _initializeAlarms();
+                        },
+                        child: const Text('Refresh Status'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -308,203 +315,267 @@ class _MedicationScreenState extends State<MedicationScreen> with WidgetsBinding
             ),
         ],
       ),
-      body: _medications.isEmpty
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.medication, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'No medications yet',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Tap the + button to add your first medication',
-              style: TextStyle(color: Colors.grey),
-            ),
-            if (_isInitializing) ...[
-              const SizedBox(height: 16),
-              const CircularProgressIndicator(),
-              const SizedBox(height: 8),
-              const Text('Initializing alarms...', style: TextStyle(color: Colors.grey)),
-            ],
-          ],
-        ),
-      )
-          : ListView.builder(
-        itemCount: _medications.length,
-        itemBuilder: (context, index) {
-          final med = _medications[index];
-          final reminderCount = med.reminderTimes.length;
-          final isAlarmEnabled = med.notificationsEnabled;
-
-          return Dismissible(
-            key: Key(med.id.toString()),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            confirmDismiss: (direction) async {
-              return await showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Delete Medication?'),
-                  content: Text(
-                    'Are you sure you want to delete ${med.name}?\n\nThis will also cancel all alarms for this medication.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              );
-            },
-            onDismissed: (_) async {
-              try {
-                await MedicationDB.instance.deleteMedication(med.id!);
-                setState(() => _medications.removeAt(index));
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${med.name} deleted'),
-                      action: SnackBarAction(
-                        label: 'Undo',
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Undo not implemented yet')),
-                          );
-                        },
+      body: Container(
+        decoration: BoxDecoration(color: Colors.teal[50]),
+        child:
+            _medications.isEmpty
+                ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.medication,
+                        size: 64,
+                        color: Colors.grey,
                       ),
-                    ),
-                  );
-                }
-              } catch (e) {
-                print('Error deleting medication: $e');
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error deleting medication: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              elevation: 3,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: ExpansionTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.medication,
-                    color: Colors.teal.shade700,
-                  ),
-                ),
-                title: Text(
-                  '${med.name} (${med.unit})',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Row(
-                  children: [
-                    Text(med.frequency),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => _toggleAlarms(med.id!, !isAlarmEnabled),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isAlarmEnabled ? Icons.alarm : Icons.alarm_off,
-                            size: 16,
-                            color: isAlarmEnabled && _alarmPermissionsGranted ? Colors.green : Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isAlarmEnabled ? 'On' : 'Off',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isAlarmEnabled && _alarmPermissionsGranted ? Colors.green : Colors.grey,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No medications yet',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
                       ),
-                    ),
-                  ],
-                ),
-                children: [
-                  ...List.generate(reminderCount, (i) {
-                    final time = med.reminderTimes[i];
-                    final dose = i < med.doses.length ? med.doses[i] : 'Unknown';
-                    final taken = i < med.takenStatus.length ? med.takenStatus[i] : false;
-
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: taken ? Colors.green.shade50 : Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: taken ? Colors.green.shade200 : Colors.orange.shade200,
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Tap the + button to add your first medication',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      if (_isInitializing) ...[
+                        const SizedBox(height: 16),
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Initializing alarms...',
+                          style: TextStyle(color: Colors.grey),
                         ),
+                      ],
+                    ],
+                  ),
+                )
+                : ListView.builder(
+                  itemCount: _medications.length,
+                  itemBuilder: (context, index) {
+                    final med = _medications[index];
+                    final reminderCount = med.reminderTimes.length;
+                    final isAlarmEnabled = med.notificationsEnabled;
+
+                    return Dismissible(
+                      key: Key(med.id.toString()),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      child: ListTile(
-                        leading: GestureDetector(
-                          onTap: () => _toggleTakenStatus(index, i),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
+                      confirmDismiss: (direction) async {
+                        return await showDialog(
+                          context: context,
+                          builder:
+                              (_) => AlertDialog(
+                                title: const Text('Delete Medication?'),
+                                content: Text(
+                                  'Are you sure you want to delete ${med.name}?\n\nThis will also cancel all alarms for this medication.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.of(context).pop(false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.of(context).pop(true),
+                                    child: const Text(
+                                      'Delete',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                        );
+                      },
+                      onDismissed: (_) async {
+                        try {
+                          await MedicationDB.instance.deleteMedication(med.id!);
+                          setState(() => _medications.removeAt(index));
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${med.name} deleted'),
+                                action: SnackBarAction(
+                                  label: 'Undo',
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Undo not implemented yet',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          print('Error deleting medication: $e');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error deleting medication: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ExpansionTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             child: Icon(
-                              taken ? Icons.check_circle : Icons.radio_button_unchecked,
-                              color: taken ? Colors.green : Colors.orange,
-                              size: 28,
+                              Icons.medication,
+                              color: Colors.teal.shade700,
                             ),
                           ),
-                        ),
-                        title: Text(
-                          'Time: $time',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        subtitle: Text('Dose: $dose'),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: taken ? Colors.green : Colors.orange,
-                            borderRadius: BorderRadius.circular(12),
+                          title: Text(
+                            '${med.name} (${med.unit})',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          child: Text(
-                            taken ? 'Taken' : 'Pending',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          subtitle: Row(
+                            children: [
+                              Text(med.frequency),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap:
+                                    () =>
+                                        _toggleAlarms(med.id!, !isAlarmEnabled),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isAlarmEnabled
+                                          ? Icons.alarm
+                                          : Icons.alarm_off,
+                                      size: 16,
+                                      color:
+                                          isAlarmEnabled &&
+                                                  _alarmPermissionsGranted
+                                              ? Colors.green
+                                              : Colors.grey,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      isAlarmEnabled ? 'On' : 'Off',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color:
+                                            isAlarmEnabled &&
+                                                    _alarmPermissionsGranted
+                                                ? Colors.green
+                                                : Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
+                          children: [
+                            ...List.generate(reminderCount, (i) {
+                              final time = med.reminderTimes[i];
+                              final dose =
+                                  i < med.doses.length
+                                      ? med.doses[i]
+                                      : 'Unknown';
+                              final taken =
+                                  i < med.takenStatus.length
+                                      ? med.takenStatus[i]
+                                      : false;
+
+                              return Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      taken
+                                          ? Colors.green.shade50
+                                          : Colors.orange.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color:
+                                        taken
+                                            ? Colors.green.shade200
+                                            : Colors.orange.shade200,
+                                  ),
+                                ),
+                                child: ListTile(
+                                  leading: GestureDetector(
+                                    onTap: () => _toggleTakenStatus(index, i),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      child: Icon(
+                                        taken
+                                            ? Icons.check_circle
+                                            : Icons.radio_button_unchecked,
+                                        color:
+                                            taken
+                                                ? Colors.green
+                                                : Colors.orange,
+                                        size: 28,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    'Time: $time',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  subtitle: Text('Dose: $dose'),
+                                  trailing: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          taken ? Colors.green : Colors.orange,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      taken ? 'Taken' : 'Pending',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  onTap: () => _toggleTakenStatus(index, i),
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 8),
+                          ],
                         ),
-                        onTap: () => _toggleTakenStatus(index, i),
                       ),
                     );
-                  }),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          );
-        },
+                  },
+                ),
       ),
     );
   }

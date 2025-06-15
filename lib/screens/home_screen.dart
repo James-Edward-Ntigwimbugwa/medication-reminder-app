@@ -1,6 +1,5 @@
-
 import 'package:flutter/material.dart';
-
+import 'package:doziyangu/l10n/l10n.dart';
 import '../database/medication_db.dart';
 import '../main.dart';
 import '../services/alarm_service.dart';
@@ -22,22 +21,24 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _selectedIndex = 1;
   bool _showPermissionBanner = false;
+  final GlobalKey<State<HealthInfoScreen>> _healthInfoScreenKey =
+      GlobalKey<State<HealthInfoScreen>>();
+  late final List<Widget> _screens;
 
-  static final List<Widget> _screens = [
-    MedicationScreen(),
-    HealthInfoScreen(),
-    const CommunicationScreen(),
-  ];
-
-  static const List<String> _titles = [
-    'Medications',
-    'Health Info Hub',
-    'Communication',
+  List<String> get _titles => [
+    AppLocalizations.of(context)!.medications,
+    AppLocalizations.of(context)!.healthInfo,
+    AppLocalizations.of(context)!.chat,
   ];
 
   @override
   void initState() {
     super.initState();
+    _screens = [
+      MedicationScreen(),
+      HealthInfoScreen(key: _healthInfoScreenKey),
+      const CommunicationScreen(),
+    ];
     WidgetsBinding.instance.addObserver(this);
     _showPermissionBanner = !widget.permissionsGranted;
     _checkInitialNotification();
@@ -50,9 +51,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkInitialNotification() async {
-    final notificationAppLaunchDetails = await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+    final notificationAppLaunchDetails =
+        await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
     if (notificationAppLaunchDetails?.didNotificationLaunchApp == true) {
-      final payload = notificationAppLaunchDetails?.notificationResponse?.payload;
+      final payload =
+          notificationAppLaunchDetails?.notificationResponse?.payload;
       if (payload != null) {
         await Future.delayed(Duration.zero);
         navigatorKey.currentState!.pushNamed('/alarm', arguments: payload);
@@ -75,40 +78,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _showPermissionDialog() {
+    final local = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.alarm, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('Permissions Required'),
+              const Icon(Icons.alarm, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text(local.permissionsRequired),
             ],
           ),
-          content: const Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'DoziYangu needs the following permissions for medication alarms:',
-                style: TextStyle(fontWeight: FontWeight.w500),
+                local.permissionExplanation,
+                style: const TextStyle(fontWeight: FontWeight.w500),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.alarm, size: 20, color: Colors.teal),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Exact alarms - For precise medication timing'),
-                  ),
+                  const Icon(Icons.alarm, size: 20, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(local.exactAlarmReason)),
                 ],
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
-                'Without these permissions, you may miss important medication reminders.',
-                style: TextStyle(color: Colors.red, fontSize: 13),
+                local.missedReminderWarning,
+                style: const TextStyle(color: Colors.red, fontSize: 13),
               ),
             ],
           ),
@@ -120,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _showPermissionBanner = true;
                 });
               },
-              child: const Text('Later'),
+              child: Text(local.later),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -128,9 +130,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 await _requestPermissions();
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              child: const Text(
-                'Grant Permissions',
-                style: TextStyle(color: Colors.white),
+              child: Text(
+                local.grantPermissions,
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ],
@@ -140,6 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _requestPermissions() async {
+    final local = AppLocalizations.of(context)!;
     final granted = await AlarmService.initialize();
     if (!mounted) return;
     setState(() {
@@ -149,8 +152,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (granted) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ All permissions granted! Medication alarms are now active.'),
+        SnackBar(
+          content: Text(local.allPermissionsGranted),
           backgroundColor: Colors.green,
         ),
       );
@@ -158,10 +161,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('⚠️ Some permissions were denied. Please enable them in Settings.'),
+          content: Text(local.permissionDenied),
           backgroundColor: Colors.orange,
           action: SnackBarAction(
-            label: 'Settings',
+            label: local.settings,
             onPressed: () => _showPermissionDialog(),
           ),
         ),
@@ -178,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _goToSettings() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const LanguageSettingsScreen()),
+      MaterialPageRoute(builder: (context) => const SettingsScreen()),
     );
   }
 
@@ -189,11 +192,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _openChatbotModal() {
+    final healthInfoState =
+        _healthInfoScreenKey.currentState as HealthInfoScreenState?;
+    healthInfoState?.openChatbotModal();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final local = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
+        backgroundColor: Colors.blue, // Debug color
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -212,17 +223,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   const Icon(Icons.warning_amber, color: Colors.orange),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Exact alarm permission missing. Medication alarms may not work.',
-                      style: TextStyle(fontSize: 13),
+                      local.permissionBanner,
+                      style: const TextStyle(fontSize: 13),
                     ),
                   ),
                   TextButton(
                     onPressed: _requestPermissions,
-                    child: const Text(
-                      'Fix',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    child: Text(
+                      local.fix,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                   IconButton(
@@ -239,28 +250,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Expanded(child: _screens[_selectedIndex]),
         ],
       ),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton.extended(
-        onPressed: _goToAddMedication,
-        icon: const Icon(Icons.add),
-        label: const Text("Add Medication"),
-        backgroundColor: Colors.teal,
-        elevation: 5,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      )
-          : null,
+      floatingActionButton:
+          _selectedIndex == 0
+              ? FloatingActionButton.extended(
+                onPressed: _goToAddMedication,
+                icon: const Icon(Icons.add),
+                label: Text(local.addMedication),
+                backgroundColor: Colors.teal,
+                elevation: 5,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              )
+              : _selectedIndex == 1
+              ? FloatingActionButton.extended(
+                onPressed: _openChatbotModal,
+                label: Text(local.chatbot),
+                icon: const Icon(Icons.chat_bubble_outline),
+                backgroundColor: Colors.teal,
+                elevation: 5,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              )
+              : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Medications'),
-          BottomNavigationBarItem(icon: Icon(Icons.info_outline), label: 'Health Info'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.list),
+            label: local.medications,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.info_outline),
+            label: local.healthInfo,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.medical_services),
+            label: local.chat,
+          ),
         ],
       ),
     );

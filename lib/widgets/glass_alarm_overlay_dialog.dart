@@ -7,7 +7,7 @@ import '../models/medication.dart';
 class AlarmOverlayScreen extends StatefulWidget {
   final String? payload;
 
-  const AlarmOverlayScreen({Key? key, this.payload}) : super(key: key);
+  const AlarmOverlayScreen({super.key, this.payload});
 
   @override
   State<AlarmOverlayScreen> createState() => _AlarmOverlayScreenState();

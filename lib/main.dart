@@ -48,7 +48,8 @@ void main() async {
   final androidPlugin =
       flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
   await androidPlugin?.createNotificationChannel(alarmChannel);
   await androidPlugin?.createNotificationChannel(missedChannel);
 
@@ -70,9 +71,7 @@ void main() async {
 
   await MedicationDB.instance.rescheduleAllAlarms();
 
-  runApp(
-    MyApp(permissionsGranted: permissionsGranted),
-  );
+  runApp(MyApp(permissionsGranted: permissionsGranted));
 }
 
 class MyApp extends StatefulWidget {
@@ -102,8 +101,9 @@ class _MyAppState extends State<MyApp> {
     final prefs = await SharedPreferences.getInstance();
     final savedLocale = prefs.getString('language');
     if (savedLocale != null &&
-        AppLocalizations.supportedLocales
-            .any((locale) => locale.languageCode == savedLocale)) {
+        AppLocalizations.supportedLocales.any(
+          (locale) => locale.languageCode == savedLocale,
+        )) {
       setState(() {
         _locale = Locale(savedLocale);
       });
@@ -131,7 +131,8 @@ class _MyAppState extends State<MyApp> {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: HomeScreen(permissionsGranted: widget.permissionsGranted),
       routes: {
-        '/alarm': (context) => AlarmOverlayScreen(
+        '/alarm':
+            (context) => AlarmOverlayScreen(
               payload: ModalRoute.of(context)!.settings.arguments as String?,
             ),
         '/settings': (context) => const SettingsScreen(),

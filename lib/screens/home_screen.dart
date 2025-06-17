@@ -256,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onPressed: _goToAddMedication,
                 icon: const Icon(Icons.add),
                 label: Text(local.addMedication),
-                backgroundColor: Colors.teal,
+                backgroundColor: const Color.fromARGB(255, 27, 151, 209),
                 elevation: 5,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -267,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onPressed: _openChatbotModal,
                 label: Text(local.chatbot),
                 icon: const Icon(Icons.chat_bubble_outline),
-                backgroundColor: Colors.teal,
+                backgroundColor: const Color.fromARGB(255, 128, 182, 243),
                 elevation: 5,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

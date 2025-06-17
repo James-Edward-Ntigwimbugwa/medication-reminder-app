@@ -1,10 +1,9 @@
-// File: lib/screens/add_medication_screen.dart
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/medication.dart';
 import '../database/medication_db.dart';
 import '../widgets/glass_clock_widget.dart';
-import '../widgets/custom_glass_time_picker.dart'; // Import the custom time picker
+import '../widgets/custom_glass_time_picker.dart';
 
 class AddMedicationScreen extends StatefulWidget {
   const AddMedicationScreen({super.key});
@@ -19,7 +18,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   final List<TimeOfDay> _reminderTimes = [];
   String _selectedFrequency = 'Once Daily';
 
-  // Updated forest green color
   static const Color forestGreen = Color(0xFF228B22);
 
   final List<String> _frequencies = [
@@ -46,13 +44,12 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       return;
     }
 
-    // Use custom glass time picker instead of default
     TimeOfDay? picked = await showCustomTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
-    if (picked != null) {
+    if (picked != null && context.mounted) {
       setState(() {
         _reminderTimes.add(picked);
       });
@@ -70,32 +67,45 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     final unit = _unitController.text.trim();
 
     if (name.isEmpty || unit.isEmpty || _reminderTimes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please complete all fields")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please complete all fields")),
+        );
+      }
       return;
     }
+
+    final reminderTimesStrings =
+        _reminderTimes.map((t) {
+          return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+        }).toList();
 
     final newMedication = Medication(
       name: name,
       unit: unit,
       frequency: _selectedFrequency,
-      reminderTimes: _reminderTimes.map((t) => t.format(context)).toList(),
+      reminderTimes: reminderTimesStrings,
       doses: List.filled(_reminderTimes.length, ''),
       takenStatus: List.filled(_reminderTimes.length, false),
     );
 
     try {
       await MedicationDB.instance.createMedication(newMedication);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Medication saved successfully")),
-      );
-      Navigator.pop(context);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Medication saved successfully")),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
-      print('Error saving medication: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to save medication")),
-      );
+      if (kDebugMode) {
+        print('Error saving medication: $e');
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to save medication")),
+        );
+      }
     }
   }
 
@@ -115,7 +125,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Light background
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text('Add Medication'),
         backgroundColor: forestGreen,
@@ -134,7 +144,10 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         onPressed: _saveMedication,
         backgroundColor: forestGreen,
         icon: const Icon(Icons.save_alt, color: Colors.white),
-        label: const Text("Save Medication", style: TextStyle(color: Colors.white)),
+        label: const Text(
+          "Save Medication",
+          style: TextStyle(color: Colors.white),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -142,7 +155,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Glass Clock Section
               Center(
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 24),
@@ -153,13 +165,13 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.white.withOpacity(0.8),
-                        Colors.white.withOpacity(0.6),
+                        Colors.white.withValues(alpha: 0.8),
+                        Colors.white.withValues(alpha: 0.6),
                       ],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
@@ -183,17 +195,12 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                       const SizedBox(height: 16),
                       Text(
                         "Set your medication reminders",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],
                   ),
                 ),
               ),
-
-              // Form Fields
               _buildFormCard([
                 _buildFormField(
                   "Medication Name",
@@ -209,10 +216,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                   Icons.balance,
                 ),
               ]),
-
               const SizedBox(height: 16),
-
-              // Frequency Section
               _buildFormCard([
                 const Text(
                   "Frequency",
@@ -233,12 +237,13 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     value: _selectedFrequency,
                     isExpanded: true,
                     underline: const SizedBox(),
-                    items: _frequencies.map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
+                    items:
+                        _frequencies.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
                     onChanged: (value) {
                       if (value != null) {
                         setState(() {
@@ -250,10 +255,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                   ),
                 ),
               ]),
-
               const SizedBox(height: 16),
-
-              // Reminder Times Section
               _buildFormCard([
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -306,17 +308,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
-                        color: forestGreen.withOpacity(0.1),
+                        color: forestGreen.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: forestGreen.withOpacity(0.3),
+                          color: forestGreen.withValues(alpha: 0.3),
                         ),
                       ),
                       child: ListTile(
-                        leading: const Icon(
-                          Icons.schedule,
-                          color: forestGreen,
-                        ),
+                        leading: const Icon(Icons.schedule, color: forestGreen),
                         title: Text(
                           "Reminder ${index + 1}",
                           style: const TextStyle(fontWeight: FontWeight.w500),
@@ -337,8 +336,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     );
                   }),
               ]),
-
-              const SizedBox(height: 100), // Space for FAB
+              const SizedBox(height: 100),
             ],
           ),
         ),
@@ -354,7 +352,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -368,11 +366,11 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   }
 
   Widget _buildFormField(
-      String label,
-      TextEditingController controller,
-      String hint,
-      IconData icon,
-      ) {
+    String label,
+    TextEditingController controller,
+    String hint,
+    IconData icon,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

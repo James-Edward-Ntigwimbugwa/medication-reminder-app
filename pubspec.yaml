@@ -52,8 +52,6 @@ dependencies:
     sdk: flutter
   intl: any
 
-
-  crypto: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

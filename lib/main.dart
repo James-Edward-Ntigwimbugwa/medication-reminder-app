@@ -52,11 +52,6 @@ void main() async {
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >();
-  final androidPlugin =
-      flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
   await androidPlugin?.createNotificationChannel(alarmChannel);
   await androidPlugin?.createNotificationChannel(missedChannel);
 

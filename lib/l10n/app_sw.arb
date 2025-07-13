@@ -63,8 +63,6 @@
   "chatWithHealthAssistant": "Ongea na Msaidizi wa Afya",
   "typeYourMessage": "Andika ujumbe wako...",
 
-
-
   "createAccount": "Fungua Akaunti Yako",
   "registerToManageProviders": "Jisajili ili kudhibiti watoa huduma wako wa afya",
   "fullName": "Jina Kamili",
@@ -109,20 +107,26 @@
   "confirmDeleteProvider": "Je, una uhakika unataka kumudu {providerName}?",
   "@confirmDeleteProvider": {
     "placeholders": {
-      "providerName": {}
+      "providerName": {
+        "type": "String"
+      }
     }
   },
   "providerDeleted": "Mtoa huduma amefutwa kwa mafanikio",
   "failedEmail": "Imeshindikana kufungua programu ya barua pepe kwa {email}. Tafadhali fungua programu yako ya barua pepe na tuma kwa {email}.",
   "@failedEmail": {
     "placeholders": {
-      "email": {}
+      "email": {
+        "type": "String"
+      }
     }
   },
   "failedWhatsApp": "Imeshindikana kufungua WhatsApp kwa {phone}. Tafadhali fungua WhatsApp na tuma ujumbe kwa {phone}.",
   "@failedWhatsApp": {
     "placeholders": {
-      "phone": {}
+      "phone": {
+        "type": "String"
+      }
     }
   },
   "userDataRecovered": "Data ya mtumiaji imerejeshwa kutoka kwenye hifadhi",
@@ -146,9 +150,6 @@
   "recoverProviders": "Rejesha Watoa Huduma",
   "debugStorageAction": "Chunguza Hifadhi",
 
-
-
-
   "appBarTitle": "DoziYangu-msaada",
   "registerDescription": "Jisajili ili kudhibiti watoa huduma wako wa afya",
   "loginDescription": "Ingia ili upate watoa huduma wako wa afya",
@@ -161,7 +162,11 @@
   "editProvider": "Hariri Mtoa Huduma",
   "@deleteConfirmation": {
     "description": "Ujumbe wa uthibitisho wa kufuta mtoa huduma",
-    "placeholders": {"provider": {}}
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "deleteConfirmation": "Una uhakika unataka kufuta {provider}?",
   "errorEmptyName": "Tafadhali ingiza jina lako kamili",
@@ -170,17 +175,24 @@
   "errorInvalidCredentials": "Barua pepe au nenosiri lisilo sahihi",
   "errorFillFields": "Tafadhali jaza sehemu zote",
   "errorInvalidWhatsApp": "Tafadhali ingiza nambari ya WhatsApp sahihi (mfano, +1234567890)",
- 
   "clearedBackup": "Hifadhi isiyo sahihi imefutwa",
   "errorCreateBackup": "Imeshindwa kuunda hifadhi",
   "@errorEmailLaunch": {
     "description": "Ujumbe wa hitilafu wakati programu ya barua pepe inashindwa kufunguka",
-    "placeholders": {"toEmail": {}}
+    "placeholders": {
+      "toEmail": {
+        "type": "String"
+      }
+    }
   },
   "errorEmailLaunch": "Imeshindwa kufungua programu ya barua pepe kwa {toEmail}. Tafadhali fungua programu yako ya barua pepe na tuma kwa {toEmail}.",
   "@errorWhatsAppLaunch": {
     "description": "Ujumbe wa hitilafu wakati WhatsApp inashindwa kufunguka",
-    "placeholders": {"phone": {}}
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
   },
   "errorWhatsAppLaunch": "Imeshindwa kufungua WhatsApp kwa {phone}. Tafadhali fungua WhatsApp na utume ujumbe kwa {phone}.",
   "clearCorrupted": "Futa hifadhi iliyoharibika?",

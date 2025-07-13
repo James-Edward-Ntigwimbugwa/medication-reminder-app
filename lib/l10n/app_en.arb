@@ -25,26 +25,25 @@
   "chat": "Chat",
 
   "saveMedication": "Save Medication",
-"currentTime": "Current Time",
-"setReminders": "Set your medication reminders",
-"medicationName": "Medication Name",
-"exampleMedication": "e.g. Amoxicillin",
-"medicationUnit": "Unit (mg/ml/tablets)",
-"exampleUnit": "e.g. 500mg",
-"frequency": "Frequency",
-"onceDaily": "Once Daily",
-"twiceDaily": "Twice Daily",
-"threeTimesDaily": "Three Times Daily",
-"custom": "Custom",
-"reminderTimes": "Reminder Times",
-"addTime": "Add Time",
-"noReminderSet": "No reminder times set",
-"reminderNumber": "Reminder {number}",
-"incompleteFields": "Please complete all fields",
-"medicationSaved": "Medication saved successfully",
-"saveFailed": "Failed to save medication",
+  "currentTime": "Current Time",
+  "setReminders": "Set your medication reminders",
+  "medicationName": "Medication Name",
+  "exampleMedication": "e.g. Amoxicillin",
+  "medicationUnit": "Unit (mg/ml/tablets)",
+  "exampleUnit": "e.g. 500mg",
+  "frequency": "Frequency",
+  "onceDaily": "Once Daily",
+  "twiceDaily": "Twice Daily",
+  "threeTimesDaily": "Three Times Daily",
+  "custom": "Custom",
+  "reminderTimes": "Reminder Times",
+  "addTime": "Add Time",
+  "noReminderSet": "No reminder times set",
+  "reminderNumber": "Reminder {number}",
+  "incompleteFields": "Please complete all fields",
+  "medicationSaved": "Medication saved successfully",
+  "saveFailed": "Failed to save medication",
 
-  
   "healthInformationHub": "Health Information Hub",
   "juaAfyaYako": "Know Your Health",
   "commonHealthTips": "Common Health Tips",
@@ -62,8 +61,6 @@
   "chatbot": "Chatbot",
   "chatWithHealthAssistant": "Chat with Health Assistant",
   "typeYourMessage": "Type your message...",
-
-
 
   "createAccount": "Create Your Account",
   "registerToManageProviders": "Register to manage your healthcare providers",
@@ -109,20 +106,26 @@
   "confirmDeleteProvider": "Are you sure you want to delete {providerName}?",
   "@confirmDeleteProvider": {
     "placeholders": {
-      "providerName": {}
+      "providerName": {
+        "type": "String"
+      }
     }
   },
   "providerDeleted": "Provider deleted successfully",
   "failedEmail": "Failed to open email app for {email}. Please open your email app and send to {email}.",
   "@failedEmail": {
     "placeholders": {
-      "email": {}
+      "email": {
+        "type": "String"
+      }
     }
   },
   "failedWhatsApp": "Failed to open WhatsApp for {phone}. Please open WhatsApp and message {phone}.",
   "@failedWhatsApp": {
     "placeholders": {
-      "phone": {}
+      "phone": {
+        "type": "String"
+      }
     }
   },
   "userDataRecovered": "User data recovered from backup",
@@ -146,50 +149,50 @@
   "recoverProviders": "Recover Providers",
   "debugStorageAction": "Debug Storage",
 
-
-
-  
   "appBarTitle": "DoziYangu-support",
-
   "registerDescription": "Register to manage your healthcare providers",
-
-
   "loginDescription": "Login to access your healthcare providers",
- 
   "debugStorageTitle": "Debug Storage",
   "providersTitle": "Your Healthcare Providers",
   "noProviders": "No providers registered yet",
   "addProviderPrompt": "Add your first healthcare provider to get started",
   "emailAction": "Email",
   "whatsappAction": "WhatsApp",
- 
   "@deleteConfirmation": {
     "description": "Confirmation message for deleting a provider",
-    "placeholders": {"provider": {}}
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "deleteConfirmation": "Are you sure you want to delete {provider}?",
   "errorEmptyName": "Please enter your full name",
   "errorInvalidEmail": "Please enter a valid email address",
   "errorShortPassword": "Password must be at least 6 characters long",
- 
   "errorInvalidCredentials": "Invalid email or password",
-
   "errorFillFields": "Please fill all fields",
   "errorInvalidWhatsApp": "Please enter a valid WhatsApp number (e.g., +1234567890)",
- 
   "clearedBackup": "Cleared invalid provider backup",
   "errorCreateBackup": "Failed to create backup",
   "@errorEmailLaunch": {
     "description": "Error message when email app fails to launch",
-    "placeholders": {"toEmail": {}}
+    "placeholders": {
+      "toEmail": {
+        "type": "String"
+      }
+    }
   },
   "errorEmailLaunch": "Failed to open email app for {toEmail}. Please open your email app and send to {toEmail}.",
   "@errorWhatsAppLaunch": {
     "description": "Error message when WhatsApp fails to launch",
-    "placeholders": {"phone": {}}
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
   },
   "errorWhatsAppLaunch": "Failed to open WhatsApp for {phone}. Please open WhatsApp and message {phone}.",
   "clearCorrupted": "Clear corrupted backup?",
   "errorDebugStorage": "Failed to debug storage"
-
 }

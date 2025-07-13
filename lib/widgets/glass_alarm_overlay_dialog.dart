@@ -26,6 +26,7 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen>
   String _medicationName = '';
   String _dose = '';
   String _time = '';
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -61,53 +62,93 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen>
 
   void _parsePayload() async {
     if (widget.payload != null) {
-      final parts = widget.payload!.split(':');
-      if (parts.length == 2) {
-        _medicationId = int.tryParse(parts[0]) ?? 0;
-        _reminderIndex = int.tryParse(parts[1]) ?? 0;
+      try {
+        final parts = widget.payload!.split(':');
+        if (parts.length == 2) {
+          _medicationId = int.tryParse(parts[0]) ?? 0;
+          _reminderIndex = int.tryParse(parts[1]) ?? 0;
 
-        try {
+          print('Parsing payload: medicationId=$_medicationId, reminderIndex=$_reminderIndex');
+
           final medications = await MedicationDB.instance.readAllMedications();
           _medication = medications.firstWhere(
             (m) => m.id == _medicationId,
-            orElse:
-                () => Medication(
-                  name: 'Unknown Medication',
-                  unit: '',
-                  frequency: '',
-                  reminderTimes: [],
-                  doses: [],
-                  takenStatus: [],
-                ),
+            orElse: () => Medication(
+              name: 'Unknown Medication',
+              unit: '',
+              frequency: '',
+              reminderTimes: [],
+              doses: [],
+              takenStatus: [],
+            ),
           );
 
-          if (_medication != null) {
+          if (_medication != null && _medication!.id == _medicationId) {
+            // Successfully found the medication
             setState(() {
               _medicationName = _medication!.name;
-              _dose =
-                  _reminderIndex < _medication!.doses.length
-                      ? _medication!.doses[_reminderIndex]
-                      : '1 dose';
-              _time =
-                  _reminderIndex < _medication!.reminderTimes.length
-                      ? _medication!.reminderTimes[_reminderIndex]
-                      : 'Unknown time';
+              
+              // Get the correct dose for this reminder - improved logic
+              if (_reminderIndex < _medication!.doses.length && _medication!.doses[_reminderIndex].isNotEmpty) {
+                _dose = _medication!.doses[_reminderIndex];
+              } else {
+                // Fallback to first dose if available, or default
+                if (_medication!.doses.isNotEmpty && _medication!.doses.first.isNotEmpty) {
+                  _dose = _medication!.doses.first;
+                } else {
+                  _dose = '1 ${_medication!.unit}'; // Use unit from medication
+                }
+              }
+              
+              // Get the correct time for this reminder
+              if (_reminderIndex < _medication!.reminderTimes.length) {
+                _time = _medication!.reminderTimes[_reminderIndex];
+              } else {
+                _time = DateTime.now().toString().substring(11, 16); // fallback to current time
+              }
+              
+              _isLoading = false;
             });
+            
+            print('Medication found: name=$_medicationName, dose=$_dose, time=$_time');
+          } else {
+            // Medication not found, set defaults
+            setState(() {
+              _medicationName = 'Unknown Medication';
+              _dose = '1 dose';
+              _time = DateTime.now().toString().substring(11, 16);
+              _isLoading = false;
+            });
+            
+            print('Medication not found for ID: $_medicationId');
           }
-        } catch (e) {
-          print('Error fetching medication details: $e');
+        } else {
+          // Invalid payload format
+          print('Invalid payload format: ${widget.payload}');
           setState(() {
-            _medicationName = 'Unknown Medication';
+            _medicationName = 'Medication Reminder';
             _dose = '1 dose';
-            _time = 'Unknown time';
+            _time = DateTime.now().toString().substring(11, 16);
+            _isLoading = false;
           });
         }
+      } catch (e) {
+        print('Error parsing payload: $e');
+        setState(() {
+          _medicationName = 'Medication Reminder';
+          _dose = '1 dose';
+          _time = DateTime.now().toString().substring(11, 16);
+          _isLoading = false;
+        });
       }
     } else {
+      // No payload provided
+      print('No payload provided');
       setState(() {
         _medicationName = 'Medication Reminder';
-        _dose = 'Time to take your medication';
+        _dose = '1 dose';
         _time = DateTime.now().toString().substring(11, 16);
+        _isLoading = false;
       });
     }
   }
@@ -306,68 +347,75 @@ class _AlarmOverlayScreenState extends State<AlarmOverlayScreen>
                                         color: Colors.white.withOpacity(0.2),
                                       ),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.medical_services,
-                                              color: Colors.white70,
-                                              size: 20,
+                                    child: _isLoading
+                                        ? const Center(
+                                            child: CircularProgressIndicator(
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                             ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                _medicationName,
-                                                style: const TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.white,
-                                                ),
+                                          )
+                                        : Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.medical_services,
+                                                    color: Colors.white70,
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      _medicationName,
+                                                      style: const TextStyle(
+                                                        fontSize: 18,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.access_time,
-                                              color: Colors.white70,
-                                              size: 20,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Time: $_time',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                color: Colors.white70,
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.access_time,
+                                                    color: Colors.white70,
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Time: $_time',
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.medication_liquid,
-                                              color: Colors.white70,
-                                              size: 20,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Dose: $_dose',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                color: Colors.white70,
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.medication_liquid,
+                                                    color: Colors.white70,
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Dose: $_dose',
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        color: Colors.white70,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
+                                            ],
+                                          ),
                                   ),
                                   const SizedBox(height: 24),
                                   Row(

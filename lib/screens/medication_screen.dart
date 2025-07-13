@@ -40,24 +40,6 @@ class _MedicationScreenState extends State<MedicationScreen>
         _currentPayload = payload;
         _isAlarmDialogVisible = true;
       });
-
-      // showDialog(
-      //   context: context,
-      //   barrierDismissible: false,
-      //   builder: (context) {
-      //     return AlarmOverlayDialog(
-      //       payload: _currentPayload,
-      //       onDismiss: () {
-      //         if (mounted) {
-      //           setState(() {
-      //             _isAlarmDialogVisible = false;
-      //             _currentPayload = null;
-      //           });
-      //         }
-      //       },
-      //     );
-      //   },
-      // );
     }
   }
 

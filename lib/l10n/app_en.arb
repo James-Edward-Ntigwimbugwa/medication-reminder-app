@@ -1,0 +1,195 @@
+{
+  "@@locale": "en",
+  "appTitle": "DoziYangu",
+  "settings": "Settings",
+  "language": "Language",
+  "selectLanguage": "Select your preferred language",
+  "english": "English",
+  "swahili": "Swahili",
+
+  "addMedication": "Add Medication",
+  "medications": "Medications",
+  "communication": "Communication",
+
+  "permissionsRequired": "Permissions Required",
+  "permissionExplanation": "We need permissions to show reminders.",
+  "exactAlarmReason": "Used to trigger medication reminders at exact times.",
+  "missedReminderWarning": "Missing this may cause missed medication alerts.",
+  "later": "Later",
+  "grantPermissions": "Grant Permissions",
+  "allPermissionsGranted": "All permissions granted!",
+  "permissionDenied": "Permission denied",
+  "permissionBanner": "Some permissions are missing.",
+  "fix": "Fix",
+  "healthInfo": "Health Info",
+  "chat": "Chat",
+
+  "saveMedication": "Save Medication",
+"currentTime": "Current Time",
+"setReminders": "Set your medication reminders",
+"medicationName": "Medication Name",
+"exampleMedication": "e.g. Amoxicillin",
+"medicationUnit": "Unit (mg/ml/tablets)",
+"exampleUnit": "e.g. 500mg",
+"frequency": "Frequency",
+"onceDaily": "Once Daily",
+"twiceDaily": "Twice Daily",
+"threeTimesDaily": "Three Times Daily",
+"custom": "Custom",
+"reminderTimes": "Reminder Times",
+"addTime": "Add Time",
+"noReminderSet": "No reminder times set",
+"reminderNumber": "Reminder {number}",
+"incompleteFields": "Please complete all fields",
+"medicationSaved": "Medication saved successfully",
+"saveFailed": "Failed to save medication",
+
+  
+  "healthInformationHub": "Health Information Hub",
+  "juaAfyaYako": "Know Your Health",
+  "commonHealthTips": "Common Health Tips",
+  "exploreDailyPractices": "Explore daily practices to maintain a healthy lifestyle.",
+  "learnMore": "Learn More",
+  "lisheBora": "Balanced Nutrition",
+  "nutrition": "Nutrition",
+  "understandNutritionImportance": "Understand the importance of balanced nutrition.",
+  "mentalHealth": "Mental Health",
+  "mentalWellBeing": "Learn about mental well-being and stress management.",
+  "maternalChildHealth": "Maternal & Child Health",
+  "maternalChildGuidance": "Vital guidance for pregnant mothers and children.",
+  "diseasePrevention": "Disease Prevention",
+  "protectFromDiseases": "Protect yourself from malaria, HIV, TB and more.",
+  "chatbot": "Chatbot",
+  "chatWithHealthAssistant": "Chat with Health Assistant",
+  "typeYourMessage": "Type your message...",
+
+
+
+  "createAccount": "Create Your Account",
+  "registerToManageProviders": "Register to manage your healthcare providers",
+  "fullName": "Full Name",
+  "emailAddress": "Email Address",
+  "passwordMin6": "Password (min 6 characters)",
+  "welcomeBack": "Welcome Back",
+  "loginToAccessProviders": "Login to access your healthcare providers",
+  "password": "Password",
+  "login": "Login",
+  "alreadyHaveAccount": "Already have an account? ",
+  "noAccount": "Don't have an account? ",
+  "register": "Register",
+  "hello": "Hello",
+  "email": "Email",
+  "yourProviders": "Your Healthcare Providers",
+  "noProvidersYet": "No providers registered yet",
+  "addFirstProvider": "Add your first healthcare provider to get started",
+  "addProvider": "Add Provider",
+  "addNewProvider": "Add New Provider",
+  "category": "Category",
+  "whatsapp": "WhatsApp",
+  "edit": "Edit",
+  "delete": "Delete",
+  "emptyName": "Please enter your full name",
+  "invalidEmail": "Please enter a valid email address",
+  "shortPassword": "Password must be at least 6 characters long",
+  "accountCreated": "Account created successfully!",
+  "invalidCredentials": "Invalid email or password",
+  "welcomeBackMessage": "Welcome back!",
+  "loggedOut": "Logged out successfully",
+  "providerName": "Provider Name",
+  "providerCategory": "Category (e.g., Doctor, Dentist)",
+  "whatsappNumber": "WhatsApp Number (e.g., +1234567890)",
+  "cancel": "Cancel",
+  "update": "Update",
+  "save": "Save",
+  "fillAllFields": "Please fill all fields",
+  "invalidWhatsApp": "Please enter a valid WhatsApp number (e.g., +1234567890)",
+  "providerUpdated": "Provider updated successfully!",
+  "providerAdded": "Provider added successfully!",
+  "deleteProvider": "Delete Provider",
+  "confirmDeleteProvider": "Are you sure you want to delete {providerName}?",
+  "@confirmDeleteProvider": {
+    "placeholders": {
+      "providerName": {}
+    }
+  },
+  "providerDeleted": "Provider deleted successfully",
+  "failedEmail": "Failed to open email app for {email}. Please open your email app and send to {email}.",
+  "@failedEmail": {
+    "placeholders": {
+      "email": {}
+    }
+  },
+  "failedWhatsApp": "Failed to open WhatsApp for {phone}. Please open WhatsApp and message {phone}.",
+  "@failedWhatsApp": {
+    "placeholders": {
+      "phone": {}
+    }
+  },
+  "userDataRecovered": "User data recovered from backup",
+  "failedDecodeUserBackup": "Failed to decode user backup",
+  "failedRecoverUserData": "Failed to recover user data",
+  "errorSavingUserData": "Error saving user data",
+  "failedSaveProviders": "Failed to save providers",
+  "providersRecovered": "Providers recovered from backup",
+  "clearedInvalidBackup": "Cleared invalid provider backup",
+  "failedDecodeProviderBackup": "Failed to decode provider backup, cleared corrupted data",
+  "noProviderBackup": "No provider backup available",
+  "failedRecoverProviders": "Failed to recover providers",
+  "debugStorage": "Debug Storage",
+  "providersCount": "Providers Count",
+  "clearCorruptedBackup": "Clear corrupted backup?",
+  "clear": "Clear",
+  "clearedBackupData": "Cleared backup data",
+  "failedDebugStorage": "Failed to debug storage",
+  "failedCreateBackup": "Failed to create backup",
+  "logout": "Logout",
+  "recoverProviders": "Recover Providers",
+  "debugStorageAction": "Debug Storage",
+
+
+
+  
+  "appBarTitle": "DoziYangu-support",
+
+  "registerDescription": "Register to manage your healthcare providers",
+
+
+  "loginDescription": "Login to access your healthcare providers",
+ 
+  "debugStorageTitle": "Debug Storage",
+  "providersTitle": "Your Healthcare Providers",
+  "noProviders": "No providers registered yet",
+  "addProviderPrompt": "Add your first healthcare provider to get started",
+  "emailAction": "Email",
+  "whatsappAction": "WhatsApp",
+ 
+  "@deleteConfirmation": {
+    "description": "Confirmation message for deleting a provider",
+    "placeholders": {"provider": {}}
+  },
+  "deleteConfirmation": "Are you sure you want to delete {provider}?",
+  "errorEmptyName": "Please enter your full name",
+  "errorInvalidEmail": "Please enter a valid email address",
+  "errorShortPassword": "Password must be at least 6 characters long",
+ 
+  "errorInvalidCredentials": "Invalid email or password",
+
+  "errorFillFields": "Please fill all fields",
+  "errorInvalidWhatsApp": "Please enter a valid WhatsApp number (e.g., +1234567890)",
+ 
+  "clearedBackup": "Cleared invalid provider backup",
+  "errorCreateBackup": "Failed to create backup",
+  "@errorEmailLaunch": {
+    "description": "Error message when email app fails to launch",
+    "placeholders": {"toEmail": {}}
+  },
+  "errorEmailLaunch": "Failed to open email app for {toEmail}. Please open your email app and send to {toEmail}.",
+  "@errorWhatsAppLaunch": {
+    "description": "Error message when WhatsApp fails to launch",
+    "placeholders": {"phone": {}}
+  },
+  "errorWhatsAppLaunch": "Failed to open WhatsApp for {phone}. Please open WhatsApp and message {phone}.",
+  "clearCorrupted": "Clear corrupted backup?",
+  "errorDebugStorage": "Failed to debug storage"
+
+}

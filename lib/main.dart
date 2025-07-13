@@ -1,11 +1,15 @@
 import 'package:doziyangu/screens/home_screen.dart';
+import 'package:doziyangu/screens/language_settings_screen.dart';
 import 'package:doziyangu/widgets/glass_alarm_overlay_dialog.dart';
 import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/alarm_service.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'database/medication_db.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:doziyangu/l10n/l10n.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -48,6 +52,11 @@ void main() async {
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >();
+  final androidPlugin =
+      flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
   await androidPlugin?.createNotificationChannel(alarmChannel);
   await androidPlugin?.createNotificationChannel(missedChannel);
 
@@ -65,17 +74,61 @@ void main() async {
     developer.log(
       'Some permissions were not granted. Alarms may not work properly.',
     );
+    developer.log(
+      'Some permissions were not granted. Alarms may not work properly.',
+    );
   }
 
   await MedicationDB.instance.rescheduleAllAlarms();
 
-  runApp(DoziYanguApp(permissionsGranted: permissionsGranted));
+  runApp(MyApp(permissionsGranted: permissionsGranted));
 }
 
-class DoziYanguApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final bool permissionsGranted;
 
-  const DoziYanguApp({super.key, required this.permissionsGranted});
+  const MyApp({super.key, required this.permissionsGranted});
+
+  static void setLocale(BuildContext context, Locale newLocale) {
+    final _MyAppState? state = context.findAncestorStateOfType<_MyAppState>();
+    state?.setLocale(newLocale);
+  }
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  Locale _locale = const Locale('sw'); // Default to Swahili
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocale();
+  }
+
+  Future<void> _loadLocale() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedLocale = prefs.getString('language');
+    if (savedLocale != null &&
+        AppLocalizations.supportedLocales.any(
+          (locale) => locale.languageCode == savedLocale,
+        )) {
+      setState(() {
+        _locale = Locale(savedLocale);
+      });
+    }
+  }
+
+  void setLocale(Locale locale) async {
+    if (AppLocalizations.supportedLocales.contains(locale)) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('language', locale.languageCode);
+      setState(() {
+        _locale = locale;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +136,10 @@ class DoziYanguApp extends StatelessWidget {
       title: 'DoziYangu',
       theme: ThemeData(primarySwatch: Colors.teal),
       navigatorKey: navigatorKey,
-      home: HomeScreen(permissionsGranted: permissionsGranted),
+      locale: _locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: HomeScreen(permissionsGranted: widget.permissionsGranted),
       routes: {
         '/alarm':
             (context) => AlarmOverlayScreen(

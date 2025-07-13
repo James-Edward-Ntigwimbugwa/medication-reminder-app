@@ -443,7 +443,7 @@ class _CommunicationScreenState extends State<CommunicationScreen> {
       appBar: AppBar(
         title: const Text('DoziYangu - Communication'),
         centerTitle: true,
-        backgroundColor: Colors.teal,
+        backgroundColor: const Color.fromARGB(255, 27, 175, 160),
         elevation: 4,
         actions: [
           if (isUserRegistered && isUserLoggedIn)
@@ -669,7 +669,7 @@ class _CommunicationScreenState extends State<CommunicationScreen> {
       ),
     );
   }
-
+//part of building providers section
   Widget _buildProviderSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,14 +714,14 @@ class _CommunicationScreenState extends State<CommunicationScreen> {
                         Icon(
                           Icons.medical_services,
                           size: 64,
-                          color: Colors.grey.shade400,
+                          color: const Color.fromARGB(255, 117, 124, 221),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'No providers registered yet',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey.shade600,
+                            color: const Color.fromARGB(255, 8, 1, 1),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -738,7 +738,7 @@ class _CommunicationScreenState extends State<CommunicationScreen> {
                           icon: const Icon(Icons.person_add, size: 20),
                           label: const Text('Add Provider'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
+                            backgroundColor: const Color.fromARGB(255, 99, 149, 206),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 24,
@@ -872,7 +872,7 @@ class _CommunicationScreenState extends State<CommunicationScreen> {
                           icon: const Icon(Icons.person_add),
                           label: const Text('Add New Provider'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
+                            backgroundColor: const Color.fromARGB(255, 101, 120, 184),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
